@@ -207,3 +207,4 @@ dialog .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; margin-to
 .sample-file .btn { white-space: nowrap; }
 .nowrap { white-space: nowrap; }
 details.sub summary { cursor: pointer; margin: 8px 0; }
+.complete-wrap { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }

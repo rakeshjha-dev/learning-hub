@@ -154,6 +154,16 @@ CREATE TABLE IF NOT EXISTS assignments (
 );
 CREATE INDEX IF NOT EXISTS idx_assign_user ON assignments(user_id);
 CREATE INDEX IF NOT EXISTS idx_assign_module ON assignments(module_id);
+CREATE TABLE IF NOT EXISTS video_progress (
+  assignment_id INTEGER NOT NULL,
+  lesson_id INTEGER NOT NULL,
+  video_url TEXT NOT NULL,
+  watched REAL NOT NULL DEFAULT 0,
+  duration REAL NOT NULL DEFAULT 0,
+  updated_ms INTEGER NOT NULL,
+  started_ms INTEGER NOT NULL,
+  PRIMARY KEY (assignment_id, lesson_id)
+);
 CREATE TABLE IF NOT EXISTS lesson_progress (
   assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
   lesson_id INTEGER NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,

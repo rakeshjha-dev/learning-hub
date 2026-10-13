@@ -1086,6 +1086,68 @@ async function viewMyLearning() {
     ${done.length ? `<h2 style="margin-top:28px">Completed</h2><div class="module-cards">${done.map(card).join('')}</div>` : ''}`;
 }
 
+const fmtClock = (s) => { s = Math.floor(s || 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+// Lesson video rules: it pauses when the learner leaves the tab and resumes when they come back; until the lesson
+// is complete they can't skip ahead or speed up, and "Mark complete" unlocks only when the video has played to the end.
+function watchVideo(video, a, lesson) {
+  video.disablePictureInPicture = true;
+  let pausedByTab = false;
+  const onVisibility = () => {
+    if (!document.body.contains(video)) { document.removeEventListener('visibilitychange', onVisibility); return; }
+    if (document.hidden) {
+      if (!video.paused) { pausedByTab = true; video.pause(); }
+    } else if (pausedByTab) {
+      pausedByTab = false;
+      video.play().catch(() => {});
+    }
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  if (!lesson.must_watch || lesson.done) return;
+
+  const btn = $('#complete');
+  const status = $('#watch-status');
+  let maxWatched = lesson.video_watched || 0;
+  let finished = false;
+  let lastSent = 0;
+  const show = () => {
+    const d = video.duration || lesson.video_duration || 0;
+    if (finished) { status.textContent = '✓ Video watched'; btn.disabled = false; return; }
+    status.textContent = d ? `Watch the full video to continue (${fmtClock(maxWatched)} of ${fmtClock(d)})` : 'Watch the full video to continue';
+    btn.disabled = true;
+  };
+  const report = async (force) => {
+    if (!force && Date.now() - lastSent < 10000) return;
+    lastSent = Date.now();
+    try {
+      const r = await api(`/my/assignments/${a.id}/lessons/${lesson.id}/video`, { method: 'POST', body: { watched: maxWatched, duration: video.duration || 0 } });
+      if (r.finished) finished = true;
+      show();
+    } catch { /* try again on the next report */ }
+  };
+  video.addEventListener('loadedmetadata', () => {
+    // Pick up where they left off.
+    if (maxWatched > 1 && maxWatched < video.duration - 1) video.currentTime = maxWatched;
+    show();
+  });
+  video.addEventListener('timeupdate', () => {
+    if (video.seeking) return;
+    if (video.currentTime > maxWatched && video.currentTime <= maxWatched + 2) maxWatched = video.currentTime;
+    show();
+    report(false);
+  });
+  video.addEventListener('seeking', () => {
+    if (video.currentTime > maxWatched + 1) {
+      video.currentTime = maxWatched;
+      toast("Skipping ahead isn't allowed. You can go back and rewatch any part.", 'error');
+    }
+  });
+  video.addEventListener('ratechange', () => { if (video.playbackRate > 1) video.playbackRate = 1; });
+  video.addEventListener('pause', () => report(true));
+  video.addEventListener('ended', () => { maxWatched = video.duration; report(true); });
+  show();
+}
+
 async function viewLearn(id, step) {
   const { assignment: a, module: m, attempts } = await api(`/my/assignments/${id}`);
   const lessonsDone = m.lessons.every((l) => l.done);
@@ -1131,7 +1193,7 @@ async function viewLearn(id, step) {
         ${i > 0 ? `<a class="btn" href="#/learn/${a.id}/${m.lessons[i - 1].id}">← Previous</a>` : '<span></span>'}
         ${l.done
           ? `<a class="btn primary" href="${nextHref}">${i < m.lessons.length - 1 ? 'Next lesson →' : hasQuiz ? 'Go to quiz →' : 'Back to my learning'}</a>`
-          : `<button class="primary" id="complete" data-lesson="${l.id}" data-next="${nextHref}">Mark complete${i < m.lessons.length - 1 || hasQuiz ? ' & continue →' : ''}</button>`}
+          : `<span class="complete-wrap">${l.must_watch ? '<span class="sub" id="watch-status"></span>' : ''}<button class="primary" id="complete" data-lesson="${l.id}" data-next="${nextHref}" ${l.must_watch ? 'disabled' : ''}>Mark complete${i < m.lessons.length - 1 || hasQuiz ? ' & continue →' : ''}</button></span>`}
       </div>`;
   }
 
@@ -1140,6 +1202,9 @@ async function viewLearn(id, step) {
       <p>${statusBadge(a)} · ${a.status === 'completed' ? `Completed ${fmtDate(a.completed_at)}` : `Due ${fmtDate(a.due_date)}`}</p></div></div>
     <div class="player">${toc}<div class="card">${body}</div></div>`;
   hydrateVideos($('#view'));
+  const lesson = step === 'quiz' ? null : (m.lessons[lessonIndex] || m.lessons[0]);
+  const video = $('#view .player video');
+  if (lesson && video) watchVideo(video, a, lesson);
 
   $('#complete')?.addEventListener('click', async (e) => {
     const b = e.currentTarget;

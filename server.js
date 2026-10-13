@@ -38,6 +38,12 @@ const BLOB_ENABLED = !!BLOB_MODE;
 const VIDEO_CONTENT_TYPES = () => [...new Set(Object.values(VIDEO_TYPES)), 'application/octet-stream'];
 // Vercel's disk is read-only and temporary, so videos there go to Blob storage instead.
 const ON_VERCEL = !!process.env.VERCEL;
+// Videos the site plays itself (uploads and direct video files) must be watched to the end before the lesson completes.
+// YouTube and Vimeo links play inside their own players, which the site can't control, so they aren't tracked.
+const isTrackedVideo = (url) => /^\/(uploads|api\/media)\//.test(url || '') || /^demo-video:/.test(url || '')
+  || /^https:\/\/[\w-]+\.public\.blob\.vercel-storage\.com\//.test(url || '') || /^https?:\/\/\S+\.(mp4|webm|ogg)(\?|$)/i.test(url || '');
+const VIDEO_REPORT_SLACK = 15; // seconds a report may run ahead of real time (network delays, buffering)
+const VIDEO_END_SLACK = 2; // seconds short of the end that still counts as finished
 if (!ON_VERCEL) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 class HttpError extends Error {
@@ -194,6 +200,7 @@ async function saveModule(id, data) {
     for (const lid of existing) {
       if (kept.has(lid)) continue;
       await db.prepare('DELETE FROM lesson_progress WHERE lesson_id = ?').run(lid);
+      await db.prepare('DELETE FROM video_progress WHERE lesson_id = ?').run(lid);
       await db.prepare('DELETE FROM lessons WHERE id = ?').run(lid);
     }
     await db.prepare('DELETE FROM questions WHERE module_id = ?').run(id);
@@ -555,6 +562,7 @@ route('PUT', '/api/modules/:id', 'admin', async ({ params, body }) => ({ id: awa
 async function deleteAssignmentsWhere(where, ...args) {
   const ids = `SELECT id FROM assignments WHERE ${where}`;
   await db.prepare(`DELETE FROM lesson_progress WHERE assignment_id IN (${ids})`).run(...args);
+  await db.prepare(`DELETE FROM video_progress WHERE assignment_id IN (${ids})`).run(...args);
   await db.prepare(`DELETE FROM quiz_attempts WHERE assignment_id IN (${ids})`).run(...args);
   return db.prepare(`DELETE FROM assignments WHERE ${where}`).run(...args);
 }
@@ -765,18 +773,52 @@ route('GET', '/api/my/assignments/:id', 'user', async ({ user, params }) => {
   const a = await myAssignment(user, params.id);
   const m = await getModuleFull(a.module_id, { includeAnswers: false });
   const done = new Set((await db.prepare('SELECT lesson_id FROM lesson_progress WHERE assignment_id = ?').all(a.id)).map((r) => r.lesson_id));
-  m.lessons = m.lessons.map((l) => ({ ...l, done: done.has(l.id) }));
+  const watched = new Map((await db.prepare('SELECT * FROM video_progress WHERE assignment_id = ?').all(a.id)).map((r) => [r.lesson_id, r]));
+  m.lessons = m.lessons.map((l) => {
+    const v = watched.get(l.id);
+    const mine = v && v.video_url === l.video_url ? v : null; // progress on a replaced video doesn't count
+    return { ...l, done: done.has(l.id), must_watch: isTrackedVideo(l.video_url), video_watched: mine?.watched || 0, video_duration: mine?.duration || 0 };
+  });
   const attempts = await db.prepare('SELECT id, score, passed, created_at FROM quiz_attempts WHERE assignment_id = ? ORDER BY id DESC').all(a.id);
   return { assignment: a, module: m, attempts };
 });
 
 route('POST', '/api/my/assignments/:id/lessons/:lessonId/complete', 'user', async ({ user, params }) => {
   const a = await myAssignment(user, params.id);
-  const lesson = await db.prepare('SELECT id FROM lessons WHERE id = ? AND module_id = ?').get(Number(params.lessonId), a.module_id);
+  const lesson = await db.prepare('SELECT id, video_url FROM lessons WHERE id = ? AND module_id = ?').get(Number(params.lessonId), a.module_id);
   if (!lesson) throw new HttpError(404, 'Lesson not found');
+  if (isTrackedVideo(lesson.video_url)) {
+    const v = await db.prepare('SELECT * FROM video_progress WHERE assignment_id = ? AND lesson_id = ?').get(a.id, lesson.id);
+    const finished = v && v.video_url === lesson.video_url && v.duration > 0 && v.watched >= v.duration - VIDEO_END_SLACK;
+    const already = await db.prepare('SELECT 1 FROM lesson_progress WHERE assignment_id = ? AND lesson_id = ?').get(a.id, lesson.id);
+    if (!finished && !already) throw new HttpError(400, 'Please watch the full video before marking this lesson complete');
+  }
   await db.prepare('INSERT OR IGNORE INTO lesson_progress (assignment_id, lesson_id) VALUES (?, ?)').run(a.id, lesson.id);
   await refreshAssignmentStatus(a.id);
   return myAssignment(user, a.id);
+});
+
+// The player reports how far the learner has watched. "Watched" can never exceed the real time since they first
+// started this video (plus a little slack), so the full video has to actually play before the lesson can be completed.
+route('POST', '/api/my/assignments/:id/lessons/:lessonId/video', 'user', async ({ user, params, body }) => {
+  const a = await myAssignment(user, params.id);
+  const lesson = await db.prepare('SELECT id, video_url FROM lessons WHERE id = ? AND module_id = ?').get(Number(params.lessonId), a.module_id);
+  if (!lesson) throw new HttpError(404, 'Lesson not found');
+  const reported = Math.max(0, Number(body.watched) || 0);
+  const duration = Math.max(0, Number(body.duration) || 0);
+  const now = Date.now();
+  const prev = await db.prepare('SELECT * FROM video_progress WHERE assignment_id = ? AND lesson_id = ?').get(a.id, lesson.id);
+  const same = prev && prev.video_url === lesson.video_url;
+  const before = same ? prev.watched : 0;
+  const started = same ? prev.started_ms : now;
+  const allowed = ((now - started) / 1000) * 1.05 + VIDEO_REPORT_SLACK;
+  let watched = Math.max(before, Math.min(reported, allowed));
+  if (duration) watched = Math.min(watched, duration);
+  await db.prepare(`INSERT INTO video_progress (assignment_id, lesson_id, video_url, watched, duration, updated_ms, started_ms) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT (assignment_id, lesson_id) DO UPDATE SET video_url = excluded.video_url, watched = excluded.watched, duration = excluded.duration,
+      updated_ms = excluded.updated_ms, started_ms = excluded.started_ms`)
+    .run(a.id, lesson.id, lesson.video_url, watched, duration || (same ? prev.duration : 0), now, started);
+  return { watched, duration, finished: duration > 0 && watched >= duration - VIDEO_END_SLACK };
 });
 
 route('POST', '/api/my/assignments/:id/quiz', 'user', async ({ user, params, body }) => {

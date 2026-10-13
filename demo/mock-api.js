@@ -482,13 +482,19 @@
     return { ok: true };
   });
 
+  const isTrackedVideo = (url) => /^\/(uploads|api\/media)\//.test(url || '') || /^demo-video:/.test(url || '')
+    || /^https:\/\/[\w-]+\.public\.blob\.vercel-storage\.com\//.test(url || '') || /^https?:\/\/\S+\.(mp4|webm|ogg)(\?|$)/i.test(url || '');
   route('GET', '/my/assignments', 'user', ({ user }) => S.assignments.filter((a) => a.user_id === user.id).map(decorate)
     .sort((a, b) => (a.status === 'completed') - (b.status === 'completed') || (a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0)));
   route('GET', '/my/assignments/:id', 'user', ({ user, params }) => {
     const a = decorate(myAssignment(user, params.id));
     const m = moduleFull(a.module_id, false);
     const done = new Set(S.lesson_progress.filter((p) => p.assignment_id === a.id).map((p) => p.lesson_id));
-    m.lessons = m.lessons.map((l) => ({ ...l, done: done.has(l.id) }));
+    S.video_progress ||= [];
+    m.lessons = m.lessons.map((l) => {
+      const v = S.video_progress.find((p) => p.assignment_id === a.id && p.lesson_id === l.id && p.video_url === l.video_url);
+      return { ...l, done: done.has(l.id), must_watch: isTrackedVideo(l.video_url), video_watched: v?.watched || 0, video_duration: v?.duration || 0 };
+    });
     const attempts = S.quiz_attempts.filter((t) => t.assignment_id === a.id).sort((x, y) => y.id - x.id).map(({ id, score, passed, created_at }) => ({ id, score, passed, created_at }));
     return { assignment: a, module: m, attempts };
   });
@@ -496,9 +502,30 @@
     const a = myAssignment(user, params.id);
     const l = S.lessons.find((x) => x.id === Number(params.lessonId) && x.module_id === a.module_id);
     if (!l) fail(404, 'Lesson not found');
-    if (!S.lesson_progress.some((p) => p.assignment_id === a.id && p.lesson_id === l.id)) S.lesson_progress.push({ assignment_id: a.id, lesson_id: l.id, completed_at: nowStr() });
+    const already = S.lesson_progress.some((p) => p.assignment_id === a.id && p.lesson_id === l.id);
+    if (isTrackedVideo(l.video_url) && !already) {
+      const v = (S.video_progress || []).find((p) => p.assignment_id === a.id && p.lesson_id === l.id && p.video_url === l.video_url);
+      if (!(v && v.duration > 0 && v.watched >= v.duration - 2)) fail(400, 'Please watch the full video before marking this lesson complete');
+    }
+    if (!already) S.lesson_progress.push({ assignment_id: a.id, lesson_id: l.id, completed_at: nowStr() });
     refreshStatus(a);
     return decorate(a);
+  });
+  route('POST', '/my/assignments/:id/lessons/:lessonId/video', 'user', ({ user, params, body }) => {
+    const a = myAssignment(user, params.id);
+    const l = S.lessons.find((x) => x.id === Number(params.lessonId) && x.module_id === a.module_id);
+    if (!l) fail(404, 'Lesson not found');
+    S.video_progress ||= [];
+    let v = S.video_progress.find((p) => p.assignment_id === a.id && p.lesson_id === l.id);
+    if (!v || v.video_url !== l.video_url) {
+      S.video_progress = S.video_progress.filter((p) => p !== v);
+      v = { assignment_id: a.id, lesson_id: l.id, video_url: l.video_url, watched: 0, duration: 0, started_ms: Date.now() };
+      S.video_progress.push(v);
+    }
+    const allowed = ((Date.now() - v.started_ms) / 1000) * 1.05 + 15;
+    v.duration = Math.max(0, Number(body.duration) || 0) || v.duration;
+    v.watched = Math.min(Math.max(v.watched, Math.min(Math.max(0, Number(body.watched) || 0), allowed)), v.duration || Infinity);
+    return { watched: v.watched, duration: v.duration, finished: v.duration > 0 && v.watched >= v.duration - 2 };
   });
   route('POST', '/my/assignments/:id/quiz', 'user', ({ user, params, body }) => {
     const a = myAssignment(user, params.id);
