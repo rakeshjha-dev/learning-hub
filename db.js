@@ -38,6 +38,14 @@ if (REMOTE_URL) {
       }
     },
   };
+} else if (process.env.VERCEL) {
+  // Online but no database connected yet: answer every request with a clear setup message.
+  const missing = async () => {
+    const e = new Error('Setup not finished: connect the Turso database in Vercel (Storage tab), then redeploy.');
+    e.status = 503;
+    throw e;
+  };
+  driver = { all: missing, run: missing, script: missing, tx: missing };
 } else {
   const { DatabaseSync } = require('node:sqlite');
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -356,7 +364,7 @@ function ready({ withDemoUsers = true } = {}) {
   readyPromise ||= (async () => {
     await driver.script(SCHEMA);
     await seed({ withDemoUsers });
-  })();
+  })().catch((e) => { readyPromise = null; throw e; }); // retry on the next request
   return readyPromise;
 }
 

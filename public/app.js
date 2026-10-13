@@ -259,7 +259,10 @@ async function router() {
 
 async function boot() {
   if (!boot.configured) {
-    state.config = await api('/config').catch(() => state.config);
+    state.config = await api('/config').catch((e) => {
+      renderLogin.error = e.message;
+      return { password: false, demoAccounts: false };
+    });
     boot.configured = true;
   }
   try { state.user = await api('/me'); } catch { return; }

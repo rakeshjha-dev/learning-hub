@@ -7,6 +7,7 @@ module.exports = (req, res) => {
   const original = url.searchParams.get('__path');
   if (original) {
     url.searchParams.delete('__path');
+    url.searchParams.delete('path'); // Vercel also appends the matched :path segment
     req.url = original + (url.searchParams.size ? `?${url.searchParams}` : '');
   }
   return handle(req, res);
