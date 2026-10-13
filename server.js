@@ -22,8 +22,9 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const GOOGLE_ENABLED = !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
 const GOOGLE_AUTH_URL = process.env.GOOGLE_AUTH_URL || 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = process.env.GOOGLE_TOKEN_URL || 'https://oauth2.googleapis.com/token';
-const ALLOWED_DOMAINS = list(process.env.ALLOWED_DOMAINS);
-const ADMIN_EMAILS = list(process.env.ADMIN_EMAILS);
+// Company defaults; override with the ALLOWED_DOMAINS / ADMIN_EMAILS settings in Vercel.
+const ALLOWED_DOMAINS = list(process.env.ALLOWED_DOMAINS || 'girnarsoft.com,cardekho.com');
+const ADMIN_EMAILS = list(process.env.ADMIN_EMAILS || 'rakesh.jha@girnarsoft.com');
 // With Google sign-in on, email + password sign-in is off unless explicitly allowed.
 const PASSWORD_LOGIN = !GOOGLE_ENABLED || process.env.ALLOW_PASSWORD_LOGIN === '1';
 const BLOB_ENABLED = !!process.env.BLOB_READ_WRITE_TOKEN;
