@@ -12,7 +12,8 @@ This takes about 20 minutes of clicking, done once. You need a Google Workspace 
 
 1. Go to https://vercel.com/new and sign in with GitHub.
 2. Find `learning-hub` in the list and click **Import**, then **Deploy**. Leave every setting as it is.
-3. When it finishes, copy the site address it shows, for example `https://learning-hub-abc.vercel.app`. You need it in Step 4.
+3. Open **Settings → Deployment Protection**, turn **Vercel Authentication** off and click **Save**. Otherwise everyone is sent to a Vercel login page instead of the app.
+4. Copy the site address it shows, for example `https://learning-hub-abc.vercel.app`. You need it in Step 4.
 
 ## Step 3. Add the database and video storage
 
