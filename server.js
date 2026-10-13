@@ -24,7 +24,8 @@ const GOOGLE_AUTH_URL = process.env.GOOGLE_AUTH_URL || 'https://accounts.google.
 const GOOGLE_TOKEN_URL = process.env.GOOGLE_TOKEN_URL || 'https://oauth2.googleapis.com/token';
 // Company defaults; override with the ALLOWED_DOMAINS / ADMIN_EMAILS settings in Vercel.
 const ALLOWED_DOMAINS = list(process.env.ALLOWED_DOMAINS || 'girnarsoft.com,cardekho.com');
-const ADMIN_EMAILS = list(process.env.ADMIN_EMAILS || 'rakesh.jha@girnarsoft.com');
+// The owner stays an admin even when ADMIN_EMAILS is set, so a typo there can't lock everyone out of the admin panel.
+const ADMIN_EMAILS = [...new Set([...list(process.env.ADMIN_EMAILS), 'rakesh.jha@girnarsoft.com'])];
 // With Google sign-in on, email + password sign-in is off unless explicitly allowed.
 const PASSWORD_LOGIN = !GOOGLE_ENABLED || process.env.ALLOW_PASSWORD_LOGIN === '1';
 // Vercel names the Blob token BLOB_READ_WRITE_TOKEN, or <PREFIX>_READ_WRITE_TOKEN when the store was given a custom prefix.

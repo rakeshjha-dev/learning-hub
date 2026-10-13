@@ -42,7 +42,7 @@ In Vercel open **Settings → Environment Variables** and add these, one at a ti
 | `GOOGLE_CLIENT_ID` | the Client ID from Step 4 |
 | `GOOGLE_CLIENT_SECRET` | the Client secret from Step 4 |
 | `ALLOWED_DOMAINS` | optional: email domains that may sign in, separated by commas (default `girnarsoft.com,cardekho.com`) |
-| `ADMIN_EMAILS` | optional: work emails of HR/admins, separated by commas (default `rakesh.jha@girnarsoft.com`; admins can also be set later from the app) |
+| `ADMIN_EMAILS` | optional: work emails of HR/admins, separated by commas (rakesh.jha@girnarsoft.com is always an admin; admins can also be set later from the app) |
 
 Then open **Deployments**, click the three dots on the top one and choose **Redeploy**.
 
