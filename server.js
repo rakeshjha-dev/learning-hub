@@ -305,6 +305,8 @@ route('GET', '/api/config', null, async () => ({
   demoAccounts: !GOOGLE_ENABLED,
   domains: ALLOWED_DOMAINS,
   blobUploads: BLOB_ENABLED,
+  // Setup check: names only (never values) of storage-related settings, to spot a misnamed Blob connection.
+  ...(BLOB_ENABLED ? {} : { storageSettings: Object.keys(process.env).filter((k) => /BLOB|READ_WRITE|STORE/i.test(k)) }),
 }));
 
 route('POST', '/api/login', null, async ({ req, body, res }) => {
