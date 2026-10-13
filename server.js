@@ -27,7 +27,10 @@ const ALLOWED_DOMAINS = list(process.env.ALLOWED_DOMAINS || 'girnarsoft.com,card
 const ADMIN_EMAILS = list(process.env.ADMIN_EMAILS || 'rakesh.jha@girnarsoft.com');
 // With Google sign-in on, email + password sign-in is off unless explicitly allowed.
 const PASSWORD_LOGIN = !GOOGLE_ENABLED || process.env.ALLOW_PASSWORD_LOGIN === '1';
-const BLOB_ENABLED = !!process.env.BLOB_READ_WRITE_TOKEN;
+// Vercel names the Blob token BLOB_READ_WRITE_TOKEN, or <PREFIX>_READ_WRITE_TOKEN when the store was given a custom prefix.
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN
+  || Object.entries(process.env).find(([k, v]) => k.endsWith('READ_WRITE_TOKEN') && String(v).startsWith('vercel_blob_rw_'))?.[1] || '';
+const BLOB_ENABLED = !!BLOB_TOKEN;
 // Vercel's disk is read-only and temporary, so videos there go to Blob storage instead.
 const ON_VERCEL = !!process.env.VERCEL;
 if (!ON_VERCEL) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -613,6 +616,7 @@ route('POST', '/api/uploads/blob', 'admin', async ({ req, body }) => {
   if (!BLOB_ENABLED) throw new HttpError(404, 'Online video storage is not set up');
   const { handleUpload } = require('@vercel/blob/client');
   return handleUpload({
+    token: BLOB_TOKEN,
     request: req,
     body,
     onBeforeGenerateToken: async (pathname) => {
