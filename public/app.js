@@ -102,7 +102,22 @@ function uploadedVideoTag(url) {
   return `<video src="${esc(url)}" controls preload="metadata"></video>`;
 }
 // Uploaded videos in the demo live in the browser; this swaps in the real source after render.
-const hydrateVideos = (root) => window.LMS_HYDRATE_VIDEOS?.(root);
+const hydrateVideos = (root) => {
+  window.LMS_HYDRATE_VIDEOS?.(root);
+  // When an uploaded video won't play, say why under the player instead of leaving a blank box.
+  $$('video[src^="/api/media/"]', root).forEach((v) => v.addEventListener('error', async () => {
+    let why = 'The video file could not be loaded.';
+    try {
+      const r = await fetch(`${v.getAttribute('src')}?check=1`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) why = d.error || `Error ${r.status}`;
+      else if (!d.ok) why = `Video storage answered ${d.status} ${d.statusText || ''}`.trim();
+      else if (!v.canPlayType(d.contentType || 'video/mp4')) why = `This browser can't play ${d.contentType} videos. Please upload an MP4 (H.264) file.`;
+      else why = "The file was found but this browser couldn't play it. Please upload an MP4 (H.264) file.";
+    } catch { /* keep the generic message */ }
+    v.insertAdjacentHTML('afterend', `<div class="result fail">⚠ ${esc(why)}</div>`);
+  }, { once: true }));
+};
 
 function renderVideo(url) {
   if (!url) return '';

@@ -51,7 +51,8 @@ class HttpError extends Error {
 const routes = [];
 function route(method, pattern, role, handler, { raw = false } = {}) {
   const keys = [];
-  const re = new RegExp(`^${pattern.replace(/:(\w+)/g, (_, k) => { keys.push(k); return '([^/]+)'; })}$`);
+  // ":name" matches one path segment; ":name*" matches the rest of the path, slashes included.
+  const re = new RegExp(`^${pattern.replace(/:(\w+)(\*?)/g, (_, k, rest) => { keys.push(k); return rest ? '(.+)' : '([^/]+)'; })}$`);
   routes.push({ method, re, keys, role, handler, raw });
 }
 
@@ -686,13 +687,25 @@ route('POST', '/api/uploads/blob', 'admin', async ({ req, body }) => {
 });
 
 // Playback for videos in a Blob store that uses store-id login: signed-in users get a short-lived link.
-route('GET', '/api/media/:access/:pathname', 'user', async ({ res, params }) => {
+// The stored pathname contains a slash (videos/…); the link may arrive with it encoded or not, so match the rest of the path.
+route('GET', '/api/media/:access/:pathname*', 'user', async ({ res, params, query }) => {
   if (BLOB_MODE !== 'presigned') throw new HttpError(404, 'Video not found');
   const access = params.access === 'public' ? 'public' : 'private';
   const pathname = String(params.pathname);
   const { issueSignedToken, presignUrl } = require('@vercel/blob');
-  const token = await issueSignedToken({ pathname, operations: ['get', 'head'], validUntil: Date.now() + 6 * 3600e3 });
-  const { presignedUrl } = await presignUrl(token, { operation: 'get', pathname, access });
+  let presignedUrl;
+  try {
+    const token = await issueSignedToken({ pathname, operations: ['get', 'head'], validUntil: Date.now() + 6 * 3600e3 });
+    ({ presignedUrl } = await presignUrl(token, { operation: 'get', pathname, access }));
+  } catch (e) {
+    console.error('Video link failed:', pathname, e.message);
+    throw new HttpError(502, `Video storage refused the request: ${e.message}`);
+  }
+  // ?check=1 is asked by the player when a video won't play, so the page can say why.
+  if (query.get('check') === '1') {
+    const r = await fetch(presignedUrl, { headers: { Range: 'bytes=0-0' } }).catch((e) => ({ ok: false, status: 0, statusText: e.message, headers: new Headers() }));
+    return { ok: r.ok, status: r.status, statusText: r.statusText, contentType: r.headers.get('content-type'), pathname, access };
+  }
   res.writeHead(302, { Location: presignedUrl, 'Cache-Control': 'private, max-age=300' });
   res.end();
 });
