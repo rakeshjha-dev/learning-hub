@@ -1,0 +1,1851 @@
+<meta charset="utf-8">
+<title>Learning Hub</title>
+
+<style>
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --border: #e4e6ef;
+  --text: #1c1e2b;
+  --muted: #6b7084;
+  --primary: #e5532d;
+  --primary-hover: #c94320;
+  --primary-text: #c2410c;
+  --ink: #24262b;
+  --primary-soft: #fff0ea;
+  --green: #138a4e;
+  --green-soft: #e5f6ed;
+  --amber: #a15c00;
+  --amber-soft: #fff3df;
+  --red: #c4302b;
+  --red-soft: #fdeceb;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(20, 22, 40, .06), 0 2px 8px rgba(20, 22, 40, .04);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--text); }
+a { color: var(--primary-text); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 22px; margin: 0; }
+h2 { font-size: 16px; margin: 0 0 12px; }
+h3 { font-size: 14px; margin: 0 0 8px; }
+
+/* layout */
+.shell { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.sidebar { background: var(--ink); color: #c8cacf; padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; align-items: center; gap: 10px; color: #fff; font-weight: 700; font-size: 16px; padding: 4px 10px 18px; }
+.brand-mark { width: 28px; height: 28px; border-radius: 7px; background: var(--primary); display: grid; place-items: center; }
+.nav-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #8a8d95; padding: 14px 10px 4px; }
+.sidebar a { color: #c8cacf; padding: 8px 10px; border-radius: 7px; display: block; }
+.sidebar a:hover { background: #33363d; text-decoration: none; color: #fff; }
+.sidebar a.active { background: var(--primary); color: #fff; }
+.sidebar .me { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid #3a3d44; font-size: 13px; }
+.sidebar .me .name { color: #fff; font-weight: 600; }
+.sidebar .me button { margin-top: 8px; }
+.main { padding: 28px 32px 60px; max-width: 1200px; width: 100%; }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.page-head p { margin: 4px 0 0; color: var(--muted); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* surfaces */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; }
+.grid { display: grid; gap: 16px; }
+.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+.stat .label { color: var(--muted); font-size: 12px; }
+.stat .value { font-size: 26px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.stat.red .value { color: var(--red); }
+.stat.green .value { color: var(--green); }
+
+/* tables */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; background: #fafbfe; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.card.flush { padding: 0; overflow: hidden; }
+.card.flush > h2 { padding: 16px 18px 0; }
+.empty { color: var(--muted); padding: 24px; text-align: center; }
+.sub { color: var(--muted); font-size: 12px; }
+
+/* badges, progress */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; background: #eef0f5; color: #4a4e63; }
+.badge.green { background: var(--green-soft); color: var(--green); }
+.badge.amber { background: var(--amber-soft); color: var(--amber); }
+.badge.red { background: var(--red-soft); color: var(--red); }
+.badge.blue { background: var(--primary-soft); color: var(--primary-text); }
+.progress { height: 8px; background: #eceef5; border-radius: 99px; overflow: hidden; min-width: 80px; }
+.progress > span { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
+.progress.done > span { background: var(--green); }
+.progress-row { display: flex; align-items: center; gap: 8px; }
+.progress-row .pct { font-size: 12px; color: var(--muted); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* forms */
+label { display: block; font-size: 12px; font-weight: 600; color: #3d4157; margin-bottom: 4px; }
+input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], input[type=url], input[type=search], select, textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid #d3d6e2; border-radius: 7px; font: inherit; background: #fff; color: var(--text);
+}
+textarea { min-height: 120px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
+.field { margin-bottom: 12px; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 500; font-size: 14px; color: var(--text); }
+.check input { width: 16px; height: 16px; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.filters > * { width: auto; min-width: 150px; }
+.filters > button { min-width: 0; }
+
+button, .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; border: 1px solid #d3d6e2; background: #fff; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+button:hover, .btn:hover { background: #f3f4f9; text-decoration: none; }
+button.primary, .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+button.primary:hover, .btn.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+button.danger { color: var(--red); border-color: #f0c4c2; }
+button.danger:hover { background: var(--red-soft); }
+button.link { border: none; background: none; padding: 0; color: var(--primary-text); font-weight: 500; }
+button.small, .btn.small { padding: 4px 10px; font-size: 12px; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+.sidebar button { background: transparent; color: #c8cacf; border-color: #4a4d55; }
+.sidebar button:hover { background: #33363d; }
+
+/* module editor */
+.block { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; background: #fcfcfe; }
+.block-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+.block-head strong { font-size: 13px; color: var(--muted); }
+.option-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.option-row input[type=radio] { width: 16px; height: 16px; flex: none; }
+
+/* learner */
+.module-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.module-card { display: flex; flex-direction: column; gap: 10px; }
+.module-card h3 { font-size: 16px; margin: 0; }
+.module-card p { margin: 0; color: var(--muted); flex: 1; }
+.module-card .meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.player { display: grid; grid-template-columns: 260px 1fr; gap: 16px; align-items: start; }
+.toc { padding: 8px; position: sticky; top: 16px; }
+.toc a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px; color: var(--text); }
+.toc a:hover { background: #f3f4f9; text-decoration: none; }
+.toc a.active { background: var(--primary-soft); color: var(--primary-text); font-weight: 600; }
+.toc a.locked { color: var(--muted); }
+.dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #c8cbd8; flex: none; display: grid; place-items: center; font-size: 11px; color: #fff; }
+.dot.done { background: var(--green); border-color: var(--green); }
+.lesson-content { font-size: 15px; line-height: 1.7; }
+.lesson-content h2 { font-size: 20px; margin: 18px 0 8px; }
+.lesson-content h3 { font-size: 17px; margin: 16px 0 6px; }
+.lesson-content h4 { font-size: 15px; margin: 14px 0 6px; }
+.video { position: relative; padding-top: 56.25%; margin-bottom: 16px; border-radius: var(--radius); overflow: hidden; background: #000; }
+.video iframe, .video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.lesson-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); gap: 8px; flex-wrap: wrap; }
+.question { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.question .q { font-weight: 600; margin-bottom: 8px; }
+.question label.opt { display: flex; gap: 10px; align-items: center; font-weight: 400; font-size: 14px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; margin-bottom: 6px; cursor: pointer; color: var(--text); }
+.question label.opt:hover { background: #f8f9fc; }
+.question label.opt.right { border-color: var(--green); background: var(--green-soft); }
+.question.wrong .q::after { content: " ✗"; color: var(--red); }
+.question.right .q::after { content: " ✓"; color: var(--green); }
+.result { padding: 14px 16px; border-radius: var(--radius); margin-bottom: 16px; font-weight: 600; }
+.result.pass { background: var(--green-soft); color: var(--green); }
+.result.fail { background: var(--red-soft); color: var(--red); }
+
+/* login */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: radial-gradient(circle at 85% 15%, rgba(246,92,54,.35), transparent 45%), var(--ink); }
+.login .card { width: 100%; max-width: 380px; padding: 28px; }
+.login h1 { margin-bottom: 4px; }
+.login p { color: var(--muted); margin: 0 0 20px; }
+.demo { margin-top: 16px; font-size: 12px; color: var(--muted); background: #f6f7fb; border-radius: 7px; padding: 10px; }
+
+/* dialog, toast */
+dialog { border: none; border-radius: 12px; padding: 0; width: min(560px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+dialog::backdrop { background: rgba(20, 22, 40, .45); }
+dialog form, dialog .dlg { padding: 22px; }
+dialog .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.pick-list { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 7px; padding: 6px; }
+.pick-list label { display: flex; gap: 8px; align-items: center; font-weight: 400; font-size: 13px; padding: 5px 6px; border-radius: 5px; color: var(--text); margin: 0; }
+.pick-list label:hover { background: #f3f4f9; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1c1e2b; color: #fff; padding: 10px 16px; border-radius: 8px; box-shadow: var(--shadow); z-index: 100; max-width: calc(100vw - 32px); }
+.toast.error { background: var(--red); }
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 10px; }
+  .brand { padding: 4px 10px; }
+  .nav-label { display: none; }
+  .sidebar .me { margin: 0 0 0 auto; border: none; padding: 0; display: flex; gap: 8px; align-items: center; }
+  .sidebar .me button { margin: 0; }
+  .main { padding: 16px; }
+  .grid-2, .player { grid-template-columns: 1fr; }
+  .toc { position: static; }
+}
+.demo .quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* branding */
+.brand-logo { display: block; height: 30px; width: auto; max-width: 100%; }
+.brand-sub { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8a8d95; font-weight: 600; margin-top: 6px; }
+.brand.with-logo { flex-direction: column; align-items: flex-start; gap: 0; }
+.login-logo { height: 40px; width: auto; max-width: 100%; margin-bottom: 18px; }
+
+/* uploads */
+.upload-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.upload-row input[type=file] { display: none; }
+.upload-status { font-size: 12px; color: var(--muted); }
+.lesson-preview video { width: 100%; max-height: 240px; border-radius: 8px; background: #000; margin-top: 8px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); }
+.tabs button.on { color: var(--primary-text); border-bottom-color: var(--primary); }
+.drop { border: 2px dashed #d3d6e2; border-radius: var(--radius); padding: 18px; text-align: center; color: var(--muted); }
+.drop.over { border-color: var(--primary); background: var(--primary-soft); }
+.preview-table { max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 7px; margin-top: 10px; font-size: 13px; }
+.preview-table td, .preview-table th { padding: 6px 8px; }
+
+/* Google sign-in and the bulk-assign sample file */
+.google-btn { width: 100%; justify-content: center; gap: 10px; font-weight: 600; padding: 10px 14px; background: #fff; color: var(--ink); border: 1px solid var(--border); text-decoration: none; }
+.google-btn:hover { background: #f6f7fb; }
+.login-hint { text-align: center; margin-top: 8px; }
+.login-or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; margin: 16px 0; }
+.login-or::before, .login-or::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.login-error { background: var(--red-soft); color: var(--red); border-radius: 7px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
+.sample-file { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--primary-soft); border-radius: 8px; padding: 12px; font-size: 13px; }
+.sample-file .btn { white-space: nowrap; }
+
+.demo-bar { background: var(--amber-soft); color: var(--amber); font-size: 13px; padding: 8px 16px; display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; text-align: center; }
+.demo-bar button { padding: 3px 10px; font-size: 12px; }
+</style>
+<div class="demo-bar" role="note"><span><strong>Demo</strong> · Everything works here, and your changes stay in this browser only.</span><button type="button" id="reset-demo">Reset demo data</button></div>
+<div id="app"></div>
+<div id="toast" class="toast" hidden></div>
+<dialog id="dialog"></dialog>
+<script>window.LMS_SEED = {"buildDate":"2026-10-13","tables":{"users":[{"id":1,"name":"Admin","email":"admin@company.com","role":"admin","department":"HR","designation":"L&D Admin","joining_date":"2024-01-01","active":1,"created_at":"2026-10-13 06:09:36","password":"admin123"},{"id":2,"name":"Priya Sharma","email":"priya@company.com","role":"employee","department":"Engineering","designation":"Software Engineer","joining_date":"2026-10-10","active":1,"created_at":"2026-10-13 06:09:36","password":"welcome123"},{"id":3,"name":"Arjun Mehta","email":"arjun@company.com","role":"employee","department":"Sales","designation":"Account Executive","joining_date":"2026-10-03","active":1,"created_at":"2026-10-13 06:09:36","password":"welcome123"},{"id":4,"name":"Neha Gupta","email":"neha@company.com","role":"employee","department":"Marketing","designation":"Marketing Manager","joining_date":"2025-09-08","active":1,"created_at":"2026-10-13 06:09:36","password":"welcome123"}],"modules":[{"id":1,"title":"Welcome to the Company","description":"Our story, values, and how we work together. Every new joiner starts here.","category":"Onboarding","is_onboarding":1,"onboarding_departments":"","due_days":7,"pass_mark":70,"published":1,"created_at":"2026-10-13 06:09:36","updated_at":"2026-10-13 06:09:36"},{"id":2,"title":"Information Security Basics","description":"Protect company and customer data: passwords, phishing, devices and reporting incidents.","category":"Compliance","is_onboarding":1,"onboarding_departments":"","due_days":14,"pass_mark":80,"published":1,"created_at":"2026-10-13 06:09:36","updated_at":"2026-10-13 06:09:36"},{"id":3,"title":"Sales Playbook Essentials","description":"Onboarding for the Sales team: pipeline stages, qualification and CRM hygiene.","category":"Onboarding","is_onboarding":1,"onboarding_departments":"Sales","due_days":21,"pass_mark":70,"published":1,"created_at":"2026-10-13 06:09:36","updated_at":"2026-10-13 06:09:36"},{"id":4,"title":"POSH Awareness (Prevention of Sexual Harassment)","description":"Annual refresher on a safe and respectful workplace. Assigned as needed.","category":"Compliance","is_onboarding":0,"onboarding_departments":"","due_days":14,"pass_mark":80,"published":1,"created_at":"2026-10-13 06:09:36","updated_at":"2026-10-13 06:09:36"},{"id":5,"title":"Giving and Receiving Feedback","description":"A short skills module for new managers and anyone who wants to grow. Assigned as needed.","category":"Skills","is_onboarding":0,"onboarding_departments":"","due_days":30,"pass_mark":60,"published":1,"created_at":"2026-10-13 06:09:36","updated_at":"2026-10-13 06:09:36"}],"lessons":[{"id":1,"module_id":1,"position":0,"title":"Our story and mission","content":"# Who we are\nWe started with a simple idea: make complex decisions easier for millions of people.\n\n## Our mission\n- Put the customer first in every decision\n- Build with **integrity** and transparency\n- Move fast, learn faster\n\nTake a few minutes to explore the company intranet and meet your team.","video_url":""},{"id":2,"module_id":1,"position":1,"title":"Our values in practice","content":"# Values you will see every day\n- **Ownership**: treat problems as your own and see them through\n- **Candour**: share honest feedback kindly and early\n- **Customer obsession**: start from what the customer needs\n- **Learning**: stay curious and help others grow\n\nYour manager will walk you through how your team applies these values.","video_url":""},{"id":3,"module_id":1,"position":2,"title":"Your first 30 days","content":"# What to expect\n- Week 1: set up your accounts, meet your buddy and team\n- Week 2: shadow colleagues and complete your onboarding modules\n- Weeks 3-4: take on your first piece of real work\n\nAsk questions early. Nobody expects you to know everything yet.","video_url":""},{"id":4,"module_id":2,"position":0,"title":"Passwords and MFA","content":"# Strong access habits\n- Use a password manager and a unique password for every system\n- Always turn on multi-factor authentication (MFA)\n- Never share your credentials, not even with IT\n\nIT will **never** ask for your password.","video_url":""},{"id":5,"module_id":2,"position":1,"title":"Spotting phishing","content":"# Phishing red flags\n- Urgent language or threats\n- Sender address that does not match the company domain\n- Unexpected attachments or login links\n\nWhen in doubt, do not click. Report the email to the security team.","video_url":""},{"id":6,"module_id":2,"position":2,"title":"Reporting an incident","content":"# If something goes wrong\nReport lost devices, suspicious emails and accidental data sharing **immediately** to the security team. Fast reporting limits the damage. You will never be penalised for reporting in good faith.","video_url":""},{"id":7,"module_id":3,"position":0,"title":"Pipeline stages","content":"# Our pipeline\n- Lead\n- Qualified\n- Proposal\n- Negotiation\n- Closed won / Closed lost\n\nMove a deal forward only when its exit criteria are met.","video_url":""},{"id":8,"module_id":3,"position":1,"title":"CRM hygiene","content":"# Keep the CRM clean\nLog every call and meeting on the same day, keep the next step and close date up to date, and never leave a deal without an owner.","video_url":""},{"id":9,"module_id":4,"position":0,"title":"A safe workplace","content":"# Our commitment\nEveryone deserves a workplace free from harassment. This module explains what harassment is, how to raise a concern and how the Internal Committee handles complaints confidentially.","video_url":""},{"id":10,"module_id":4,"position":1,"title":"Raising a concern","content":"# How to raise a concern\n- Write to the Internal Committee (IC)\n- Speak to your HR business partner\n- Complaints are handled confidentially and retaliation is not tolerated","video_url":""},{"id":11,"module_id":5,"position":0,"title":"The SBI model","content":"# Situation, Behaviour, Impact\nDescribe the **situation**, the specific **behaviour** you observed, and its **impact**. It keeps feedback concrete and fair.","video_url":""}],"questions":[{"id":1,"module_id":1,"position":0,"text":"Which value means treating problems as your own and seeing them through?","options":"[\"Candour\",\"Ownership\",\"Learning\",\"Customer obsession\"]","correct_index":1},{"id":2,"module_id":1,"position":1,"text":"What should you do in your first week?","options":"[\"Ship a major project\",\"Set up accounts and meet your buddy and team\",\"Skip onboarding modules\",\"Plan the annual budget\"]","correct_index":1},{"id":3,"module_id":2,"position":0,"text":"IT asks you for your password over chat. What should you do?","options":"[\"Share it, IT needs it\",\"Refuse and report it to security\",\"Share only half of it\",\"Change it after sharing\"]","correct_index":1},{"id":4,"module_id":2,"position":1,"text":"Which is a common phishing red flag?","options":"[\"An email from your manager about lunch\",\"Urgent language with an unexpected login link\",\"A calendar invite for a team meeting\",\"A newsletter you subscribed to\"]","correct_index":1},{"id":5,"module_id":2,"position":2,"text":"You lost your laptop. When should you report it?","options":"[\"After a week of searching\",\"Only if it had customer data\",\"Immediately\",\"Never\"]","correct_index":2},{"id":6,"module_id":3,"position":0,"text":"When should you log a customer call in the CRM?","options":"[\"At the end of the quarter\",\"The same day\",\"Only if the deal closes\",\"Never\"]","correct_index":1},{"id":7,"module_id":4,"position":0,"text":"Who handles harassment complaints?","options":"[\"Your direct teammates\",\"The Internal Committee\",\"Customers\",\"Nobody\"]","correct_index":1},{"id":8,"module_id":5,"position":0,"text":"What does SBI stand for?","options":"[\"Simple, Brief, Informal\",\"Situation, Behaviour, Impact\",\"Skills, Benefits, Ideas\",\"Start, Build, Improve\"]","correct_index":1}],"assignments":[{"id":1,"module_id":1,"user_id":2,"source":"onboarding","assigned_by":1,"note":"","assigned_at":"2026-10-13 06:09:36","due_date":"2026-10-17","status":"assigned","started_at":null,"completed_at":null,"best_score":null},{"id":2,"module_id":2,"user_id":2,"source":"onboarding","assigned_by":1,"note":"","assigned_at":"2026-10-13 06:09:36","due_date":"2026-10-24","status":"assigned","started_at":null,"completed_at":null,"best_score":null},{"id":3,"module_id":1,"user_id":3,"source":"onboarding","assigned_by":1,"note":"","assigned_at":"2026-10-13 06:09:36","due_date":"2026-10-10","status":"assigned","started_at":null,"completed_at":null,"best_score":null},{"id":4,"module_id":2,"user_id":3,"source":"onboarding","assigned_by":1,"note":"","assigned_at":"2026-10-13 06:09:36","due_date":"2026-10-17","status":"assigned","started_at":null,"completed_at":null,"best_score":null},{"id":5,"module_id":3,"user_id":3,"source":"onboarding","assigned_by":1,"note":"","assigned_at":"2026-10-13 06:09:36","due_date":"2026-10-24","status":"assigned","started_at":null,"completed_at":null,"best_score":null},{"id":6,"module_id":4,"user_id":4,"source":"manual","assigned_by":1,"note":"Annual compliance refresher","assigned_at":"2026-10-13 06:09:36","due_date":"2026-10-27","status":"assigned","started_at":null,"completed_at":null,"best_score":null}],"lesson_progress":[],"quiz_attempts":[]}};
+window.LMS_BRAND = null;
+window.LMS_TEMPLATE_URL = "data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,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";</script>
+<script>
+// In-browser stand-in for server.js, used only by the one-file demo build.
+// It answers the same /api routes from data kept in the browser, so the real app.js runs unchanged.
+(function () {
+  'use strict';
+  window.LMS_DEMO = true;
+  const KEY = 'learning-hub-demo-v1';
+  const SEED = window.LMS_SEED;
+  const DEFAULT_PASSWORD = 'welcome123';
+
+  // ---------- dates ----------
+  function today() {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 10);
+  }
+  function addDays(dateStr, n) {
+    const d = new Date(`${dateStr.slice(0, 10)}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + Number(n || 0));
+    return d.toISOString().slice(0, 10) + dateStr.slice(10);
+  }
+  const nowStr = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const daysBetween = (a, b) => Math.round((new Date(`${b}T00:00:00Z`) - new Date(`${a}T00:00:00Z`)) / 864e5);
+
+  // ---------- store ----------
+  function fresh() {
+    const s = JSON.parse(JSON.stringify(SEED.tables));
+    // Seed dates are relative to when the demo was built; move them so "joined 3 days ago" stays true.
+    const shift = daysBetween(SEED.buildDate, today());
+    const move = (v) => (v ? addDays(v, shift) : v);
+    s.users.forEach((u) => { u.joining_date = move(u.joining_date); u.created_at = move(u.created_at); });
+    s.modules.forEach((m) => { m.created_at = move(m.created_at); m.updated_at = move(m.updated_at); });
+    s.assignments.forEach((a) => { ['assigned_at', 'due_date', 'started_at', 'completed_at'].forEach((k) => { a[k] = move(a[k]); }); });
+    s.lesson_progress.forEach((p) => { p.completed_at = move(p.completed_at); });
+    s.quiz_attempts.forEach((t) => { t.created_at = move(t.created_at); });
+    s.session = null;
+    return s;
+  }
+  let S;
+  try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch { S = fresh(); }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* storage unavailable: keep in memory */ } };
+  window.LMS_RESET_DEMO = () => {
+    try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+    try { indexedDB.deleteDatabase(VIDEO_DB); } catch { /* ignore */ }
+    location.hash = '';
+    location.reload();
+  };
+
+  // ---------- uploaded videos (kept in this browser's IndexedDB, or in memory if that is blocked) ----------
+  const VIDEO_DB = 'learning-hub-demo-videos';
+  const memoryVideos = new Map();
+  const openVideoDb = () => new Promise((resolve, reject) => {
+    const r = indexedDB.open(VIDEO_DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('videos');
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+  async function putVideo(id, blob) {
+    memoryVideos.set(id, blob);
+    try {
+      const d = await openVideoDb();
+      await new Promise((resolve, reject) => { const t = d.transaction('videos', 'readwrite'); t.objectStore('videos').put(blob, id); t.oncomplete = resolve; t.onerror = () => reject(t.error); });
+    } catch { /* memory copy still works for this visit */ }
+  }
+  async function getVideo(id) {
+    if (memoryVideos.has(id)) return memoryVideos.get(id);
+    try {
+      const d = await openVideoDb();
+      return await new Promise((resolve) => { const r = d.transaction('videos').objectStore('videos').get(id); r.onsuccess = () => resolve(r.result || null); r.onerror = () => resolve(null); });
+    } catch { return null; }
+  }
+  const objectUrls = new Map();
+  window.LMS_HYDRATE_VIDEOS = async (root) => {
+    for (const v of root.querySelectorAll('video[data-demo-video]')) {
+      const id = v.dataset.demoVideo;
+      if (!objectUrls.has(id)) {
+        const blob = await getVideo(id);
+        if (!blob) { v.outerHTML = '<p class="sub">This video was uploaded in another browser, so it can\'t be shown here.</p>'; continue; }
+        objectUrls.set(id, URL.createObjectURL(blob));
+      }
+      v.src = objectUrls.get(id);
+    }
+  };
+
+  const nextId = (table) => S[table].reduce((m, r) => Math.max(m, r.id || 0), 0) + 1;
+  const userById = (id) => S.users.find((u) => u.id === id);
+  const fail = (status, message) => { const e = new Error(message); e.status = status; throw e; };
+  const str = (v, max = 5000) => String(v ?? '').trim().slice(0, max);
+  const isDate = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+  const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || ''));
+  const toInt = (v, fb) => (v !== null && v !== undefined && String(v).trim() !== '' && Number.isFinite(Number(v)) ? Math.round(Number(v)) : fb);
+  const byName = (a, b) => a.name.localeCompare(b.name);
+
+  // ---------- domain logic (mirrors db.js / server.js) ----------
+  const lessonsOf = (mid) => S.lessons.filter((l) => l.module_id === mid).sort((a, b) => a.position - b.position);
+  const questionsOf = (mid) => S.questions.filter((q) => q.module_id === mid).sort((a, b) => a.position - b.position);
+
+  function departmentMatches(list, dept) {
+    const items = String(list || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    return !items.length || items.includes(String(dept || '').trim().toLowerCase());
+  }
+
+  function assignOnboarding(userId, by) {
+    const u = userById(userId);
+    if (!u) return 0;
+    let n = 0;
+    for (const m of S.modules.filter((x) => x.is_onboarding && x.published)) {
+      if (!departmentMatches(m.onboarding_departments, u.department)) continue;
+      if (S.assignments.some((a) => a.module_id === m.id && a.user_id === u.id)) continue;
+      S.assignments.push({ id: nextId('assignments'), module_id: m.id, user_id: u.id, source: 'onboarding', assigned_by: by ?? null, note: '', assigned_at: nowStr(), due_date: addDays(u.joining_date, m.due_days), status: 'assigned', started_at: null, completed_at: null, best_score: null });
+      n++;
+    }
+    return n;
+  }
+
+  function counts(a) {
+    const lessons = lessonsOf(a.module_id);
+    const ids = new Set(lessons.map((l) => l.id));
+    return {
+      lessons_total: lessons.length,
+      lessons_done: S.lesson_progress.filter((p) => p.assignment_id === a.id && ids.has(p.lesson_id)).length,
+      questions_total: questionsOf(a.module_id).length,
+      quiz_passed: S.quiz_attempts.some((t) => t.assignment_id === a.id && t.passed) ? 1 : 0,
+      attempts: S.quiz_attempts.filter((t) => t.assignment_id === a.id).length,
+    };
+  }
+
+  function refreshStatus(a) {
+    const c = counts(a);
+    const complete = c.lessons_done >= c.lessons_total && (c.questions_total === 0 || c.quiz_passed);
+    const status = complete ? 'completed' : c.lessons_done > 0 || c.attempts > 0 ? 'in_progress' : 'assigned';
+    a.status = status;
+    if (status !== 'assigned' && !a.started_at) a.started_at = nowStr();
+    a.completed_at = status === 'completed' ? a.completed_at || nowStr() : null;
+  }
+
+  function decorate(a) {
+    const m = S.modules.find((x) => x.id === a.module_id);
+    const u = userById(a.user_id);
+    const ab = userById(a.assigned_by);
+    const c = counts(a);
+    const hasQuiz = c.questions_total > 0;
+    const steps = c.lessons_total + (hasQuiz ? 1 : 0);
+    const done = c.lessons_done + (hasQuiz && c.quiz_passed ? 1 : 0);
+    return {
+      ...a, module_title: m.title, module_category: m.category, module_description: m.description, pass_mark: m.pass_mark,
+      user_name: u.name, user_email: u.email, user_department: u.department, assigned_by_name: ab ? ab.name : null,
+      lessons_total: c.lessons_total, lessons_done: c.lessons_done, questions_total: c.questions_total, quiz_passed: c.quiz_passed,
+      progress: a.status === 'completed' ? 100 : steps ? Math.round((done / steps) * 100) : 0,
+      overdue: a.status !== 'completed' && a.due_date < today(),
+    };
+  }
+  const sortAssign = (x, y) => (x.due_date < y.due_date ? -1 : x.due_date > y.due_date ? 1 : x.user_name.localeCompare(y.user_name));
+
+  function moduleFull(id, includeAnswers) {
+    const m = S.modules.find((x) => x.id === id);
+    if (!m) fail(404, 'Module not found');
+    return {
+      ...m,
+      lessons: lessonsOf(id).map((l) => ({ ...l })),
+      questions: questionsOf(id).map((q) => {
+        const o = { id: q.id, text: q.text, options: JSON.parse(q.options) };
+        if (includeAnswers) o.correct_index = q.correct_index;
+        return o;
+      }),
+    };
+  }
+
+  function validateModule(b) {
+    const title = str(b.title, 200);
+    if (!title) fail(400, 'Module title is required');
+    const lessons = Array.isArray(b.lessons) ? b.lessons : [];
+    if (!lessons.length) fail(400, 'Add at least one lesson');
+    lessons.forEach((l, i) => { if (!str(l.title)) fail(400, `Lesson ${i + 1} needs a title`); });
+    const questions = (Array.isArray(b.questions) ? b.questions : []).map((q, i) => {
+      const options = (q.options || []).map((o) => str(o, 500)).filter(Boolean);
+      if (!str(q.text)) fail(400, `Question ${i + 1} needs text`);
+      if (options.length < 2) fail(400, `Question ${i + 1} needs at least two options`);
+      const c = toInt(q.correct_index, -1);
+      if (c < 0 || c >= options.length) fail(400, `Pick the correct answer for question ${i + 1}`);
+      return { text: str(q.text, 1000), options, correct_index: c };
+    });
+    return {
+      title, description: str(b.description, 2000), category: str(b.category, 100),
+      is_onboarding: b.is_onboarding ? 1 : 0, onboarding_departments: str(b.onboarding_departments, 500),
+      due_days: Math.max(0, toInt(b.due_days, 7)), pass_mark: Math.min(100, Math.max(0, toInt(b.pass_mark, 70))),
+      published: b.published === false || b.published === 0 ? 0 : 1,
+      lessons: lessons.map((l) => ({ id: toInt(l.id, null), title: str(l.title, 200), content: str(l.content, 100000), video_url: str(l.video_url, 1000) })),
+      questions,
+    };
+  }
+
+  function saveModule(id, d) {
+    const { lessons, questions, ...fields } = d;
+    let m;
+    if (id) {
+      m = S.modules.find((x) => x.id === id);
+      if (!m) fail(404, 'Module not found');
+      Object.assign(m, fields, { updated_at: nowStr() });
+    } else {
+      m = { id: nextId('modules'), ...fields, created_at: nowStr(), updated_at: nowStr() };
+      S.modules.push(m);
+    }
+    const existing = new Set(S.lessons.filter((l) => l.module_id === m.id).map((l) => l.id));
+    const kept = new Set();
+    lessons.forEach((l, i) => {
+      if (l.id && existing.has(l.id)) {
+        Object.assign(S.lessons.find((x) => x.id === l.id), { position: i, title: l.title, content: l.content, video_url: l.video_url });
+        kept.add(l.id);
+      } else {
+        S.lessons.push({ id: nextId('lessons'), module_id: m.id, position: i, title: l.title, content: l.content, video_url: l.video_url });
+      }
+    });
+    const removed = [...existing].filter((x) => !kept.has(x));
+    S.lessons = S.lessons.filter((l) => !removed.includes(l.id));
+    S.lesson_progress = S.lesson_progress.filter((p) => !removed.includes(p.lesson_id));
+    S.questions = S.questions.filter((q) => q.module_id !== m.id);
+    questions.forEach((q, i) => S.questions.push({ id: nextId('questions'), module_id: m.id, position: i, text: q.text, options: JSON.stringify(q.options), correct_index: q.correct_index }));
+    S.assignments.filter((a) => a.module_id === m.id && a.status !== 'completed').forEach(refreshStatus);
+    return m.id;
+  }
+
+  function deleteAssignments(pred) {
+    const gone = new Set(S.assignments.filter(pred).map((a) => a.id));
+    S.assignments = S.assignments.filter((a) => !gone.has(a.id));
+    S.lesson_progress = S.lesson_progress.filter((p) => !gone.has(p.assignment_id));
+    S.quiz_attempts = S.quiz_attempts.filter((t) => !gone.has(t.assignment_id));
+    return gone.size;
+  }
+
+  function validateEmployee(b) {
+    const e = {
+      name: str(b.name, 200), email: str(b.email, 200).toLowerCase(), department: str(b.department, 100),
+      designation: str(b.designation, 100), joining_date: str(b.joining_date, 10) || today(), role: b.role === 'admin' ? 'admin' : 'employee',
+    };
+    if (!e.name) fail(400, 'Name is required');
+    if (!isEmail(e.email)) fail(400, `Invalid email: ${e.email || '(blank)'}`);
+    if (!isDate(e.joining_date)) fail(400, 'Joining date must be YYYY-MM-DD');
+    return e;
+  }
+
+  function createEmployee(b, adminId) {
+    const e = validateEmployee(b);
+    if (b.password && String(b.password).length < 6) fail(400, 'Password must be at least 6 characters');
+    if (S.users.some((u) => u.email === e.email)) fail(409, `${e.email} already exists`);
+    const id = nextId('users');
+    S.users.push({ id, ...e, password: String(b.password || DEFAULT_PASSWORD), active: 1, created_at: nowStr() });
+    return { id, onboarding_assigned: b.assign_onboarding === false ? 0 : assignOnboarding(id, adminId) };
+  }
+
+  function parseCsv(text) {
+    return String(text || '').split(/\r?\n/).filter((l) => l.trim()).map((line) => {
+      const cells = []; let cur = ''; let q = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+        else if (c === '"') q = true; else if (c === ',') { cells.push(cur); cur = ''; } else cur += c;
+      }
+      cells.push(cur);
+      return cells.map((c) => c.trim());
+    });
+  }
+
+  function listAssignments(q) {
+    const t = today();
+    const s = (q.get('search') || '').toLowerCase();
+    return S.assignments.map(decorate).filter((a) =>
+      (!q.get('module_id') || a.module_id === Number(q.get('module_id')))
+      && (!q.get('user_id') || a.user_id === Number(q.get('user_id')))
+      && (!q.get('department') || a.user_department === q.get('department'))
+      && (!q.get('source') || a.source === q.get('source'))
+      && (!q.get('status') || (q.get('status') === 'overdue' ? a.status !== 'completed' && a.due_date < t : a.status === q.get('status')))
+      && (!s || `${a.user_name} ${a.user_email} ${a.module_title}`.toLowerCase().includes(s))).sort(sortAssign);
+  }
+
+  const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, role: u.role, department: u.department, designation: u.designation, joining_date: u.joining_date });
+
+  function myAssignment(user, id) {
+    const a = S.assignments.find((x) => x.id === Number(id));
+    if (!a || a.user_id !== user.id) fail(404, 'Assignment not found');
+    return a;
+  }
+
+  // ---------- routes ----------
+  const routes = [];
+  const route = (method, pattern, role, fn) => {
+    const keys = [];
+    const re = new RegExp(`^${pattern.replace(/\./g, '\\.').replace(/:(\w+)/g, (_, k) => { keys.push(k); return '([^/]+)'; })}$`);
+    routes.push({ method, re, keys, role, fn });
+  };
+
+  route('POST', '/login', null, ({ body }) => {
+    const u = S.users.find((x) => x.email === str(body.email).toLowerCase() && x.active);
+    if (!u || u.password !== String(body.password || '')) fail(401, 'Wrong email or password');
+    S.session = u.id;
+    return { ok: true };
+  });
+  route('GET', '/config', null, () => ({ google: false, password: true, demoAccounts: true, domains: [], blobUploads: false }));
+  route('POST', '/logout', null, () => { S.session = null; return { ok: true }; });
+  route('GET', '/me', 'user', ({ user }) => publicUser(user));
+  route('POST', '/me/password', 'user', ({ user, body }) => {
+    if (user.password !== String(body.current || '')) fail(400, 'Current password is wrong');
+    if (String(body.next || '').length < 6) fail(400, 'New password must be at least 6 characters');
+    user.password = String(body.next);
+    return { ok: true };
+  });
+
+  route('GET', '/dashboard', 'admin', () => {
+    const t = today();
+    const all = S.assignments.map(decorate);
+    const od = (a) => a.status !== 'completed' && a.due_date < t;
+    const group = (keyFn) => {
+      const map = new Map();
+      all.forEach((a) => { const k = keyFn(a); const g = map.get(k) || { assigned: 0, completed: 0, overdue: 0 }; g.assigned++; if (a.status === 'completed') g.completed++; if (od(a)) g.overdue++; map.set(k, g); });
+      return map;
+    };
+    const mod = group((a) => a.module_id);
+    const dep = group((a) => a.user_department || '(none)');
+    return {
+      totals: {
+        employees: S.users.filter((u) => u.active && u.role === 'employee').length,
+        modules: S.modules.filter((m) => m.published).length,
+        assignments: all.length,
+        completed: all.filter((a) => a.status === 'completed').length,
+        in_progress: all.filter((a) => a.status === 'in_progress').length,
+        overdue: all.filter(od).length,
+      },
+      byModule: S.modules.map((m) => ({ id: m.id, title: m.title, is_onboarding: m.is_onboarding, ...(mod.get(m.id) || { assigned: 0, completed: 0, overdue: 0 }) }))
+        .sort((a, b) => b.assigned - a.assigned || a.title.localeCompare(b.title)),
+      byDepartment: [...dep.entries()].map(([department, g]) => ({ department, ...g })).sort((a, b) => a.department.localeCompare(b.department)),
+      overdue: all.filter(od).sort(sortAssign).slice(0, 10),
+      recent: all.filter((a) => a.status === 'completed').sort((a, b) => (b.completed_at > a.completed_at ? 1 : -1)).slice(0, 10),
+      newJoiners: S.users.filter((u) => u.active && u.role === 'employee' && u.joining_date >= addDays(t, -30))
+        .sort((a, b) => (b.joining_date > a.joining_date ? 1 : -1)).slice(0, 10)
+        .map((u) => ({ id: u.id, name: u.name, department: u.department, designation: u.designation, joining_date: u.joining_date })),
+    };
+  });
+
+  route('GET', '/employees', 'admin', () => {
+    const t = today();
+    return [...S.users].sort((a, b) => b.active - a.active || byName(a, b)).map((u) => {
+      const as = S.assignments.filter((a) => a.user_id === u.id);
+      return {
+        ...publicUser(u), active: u.active, assigned: as.length,
+        completed: as.filter((a) => a.status === 'completed').length,
+        overdue: as.filter((a) => a.status !== 'completed' && a.due_date < t).length,
+      };
+    });
+  });
+  route('GET', '/departments', 'admin', () => [...new Set(S.users.map((u) => u.department).filter(Boolean))].sort());
+  route('POST', '/employees', 'admin', ({ body, user }) => createEmployee(body, user.id));
+  route('POST', '/employees/import', 'admin', ({ body, user }) => {
+    const rows = parseCsv(body.csv);
+    if (rows.length && rows[0].some((c) => c.toLowerCase() === 'email')) rows.shift();
+    const created = []; const errors = [];
+    rows.forEach((r, i) => {
+      const [name, email, department, designation, joining_date] = r;
+      try { created.push(createEmployee({ name, email, department, designation, joining_date, assign_onboarding: body.assign_onboarding !== false }, user.id)); }
+      catch (e) { errors.push({ row: i + 1, email, error: e.message }); }
+    });
+    return { created: created.length, onboarding_assigned: created.reduce((s, c) => s + c.onboarding_assigned, 0), errors };
+  });
+  route('GET', '/employees/:id', 'admin', ({ params }) => {
+    const u = userById(Number(params.id));
+    if (!u) fail(404, 'Employee not found');
+    return { ...publicUser(u), active: u.active, created_at: u.created_at, assignments: S.assignments.filter((a) => a.user_id === u.id).map(decorate).sort((a, b) => (a.due_date > b.due_date ? 1 : -1)) };
+  });
+  route('PUT', '/employees/:id', 'admin', ({ params, body, user }) => {
+    const id = Number(params.id);
+    const u = userById(id);
+    if (!u) fail(404, 'Employee not found');
+    const e = validateEmployee(body);
+    const active = body.active === false || body.active === 0 ? 0 : 1;
+    if (id === user.id && (!active || e.role !== 'admin')) fail(400, 'You cannot deactivate or demote yourself');
+    if (S.users.some((x) => x.email === e.email && x.id !== id)) fail(409, `${e.email} already exists`);
+    if (body.password && String(body.password).length < 6) fail(400, 'Password must be at least 6 characters');
+    Object.assign(u, e, { active });
+    if (body.password) u.password = String(body.password);
+    return { ok: true };
+  });
+  route('POST', '/employees/:id/onboarding', 'admin', ({ params, user }) => ({ assigned: assignOnboarding(Number(params.id), user.id) }));
+
+  route('GET', '/modules', 'admin', () => [...S.modules].sort((a, b) => b.is_onboarding - a.is_onboarding || a.title.localeCompare(b.title)).map((m) => {
+    const as = S.assignments.filter((a) => a.module_id === m.id);
+    return { ...m, lessons_count: lessonsOf(m.id).length, questions_count: questionsOf(m.id).length, assigned: as.length, completed: as.filter((a) => a.status === 'completed').length };
+  }));
+  route('GET', '/modules/:id', 'admin', ({ params }) => moduleFull(Number(params.id), true));
+  route('POST', '/modules', 'admin', ({ body }) => ({ id: saveModule(null, validateModule(body)) }));
+  route('PUT', '/modules/:id', 'admin', ({ params, body }) => ({ id: saveModule(Number(params.id), validateModule(body)) }));
+  route('DELETE', '/modules/:id', 'admin', ({ params }) => {
+    const id = Number(params.id);
+    if (!S.modules.some((m) => m.id === id)) fail(404, 'Module not found');
+    deleteAssignments((a) => a.module_id === id);
+    S.modules = S.modules.filter((m) => m.id !== id);
+    S.lessons = S.lessons.filter((l) => l.module_id !== id);
+    S.questions = S.questions.filter((q) => q.module_id !== id);
+    return { ok: true };
+  });
+
+  route('GET', '/assignments', 'admin', ({ query }) => listAssignments(query));
+  route('POST', '/assignments', 'admin', ({ body, user }) => {
+    const m = S.modules.find((x) => x.id === Number(body.module_id));
+    if (!m) fail(400, 'Choose a module');
+    const ids = [...new Set((body.user_ids || []).map(Number).filter(Boolean))];
+    if (!ids.length) fail(400, 'Choose at least one employee');
+    const due = str(body.due_date, 10) || addDays(today(), m.due_days);
+    if (!isDate(due)) fail(400, 'Due date must be YYYY-MM-DD');
+    let created = 0; let skipped = 0;
+    for (const uid of ids) {
+      if (!userById(uid) || S.assignments.some((a) => a.module_id === m.id && a.user_id === uid && a.status !== 'completed')) { skipped++; continue; }
+      S.assignments.push({ id: nextId('assignments'), module_id: m.id, user_id: uid, source: 'manual', assigned_by: user.id, note: str(body.note, 500), assigned_at: nowStr(), due_date: due, status: 'assigned', started_at: null, completed_at: null, best_score: null });
+      created++;
+    }
+    return { created, skipped };
+  });
+  route('POST', '/assignments/bulk', 'admin', ({ body, user }) => {
+    const m = S.modules.find((x) => x.id === Number(body.module_id));
+    if (!m) fail(400, 'Choose a module');
+    const due = str(body.due_date, 10) || addDays(today(), m.due_days);
+    if (!isDate(due)) fail(400, 'Due date must be YYYY-MM-DD');
+    const rows = Array.isArray(body.rows) ? body.rows.slice(0, 5000) : [];
+    if (!rows.length) fail(400, 'The sheet has no rows');
+    const result = { created: 0, skipped: 0, new_employees: 0, errors: [] };
+    const seen = new Set();
+    rows.forEach((r, i) => {
+      const email = str(r.email, 200).toLowerCase();
+      try {
+        if (!isEmail(email)) fail(400, `Invalid email "${email || '(blank)'}"`);
+        if (seen.has(email)) fail(400, `${email} appears more than once`);
+        seen.add(email);
+        let u = S.users.find((x) => x.email === email);
+        if (u && !u.active) fail(400, `${email} is deactivated`);
+        if (!u) {
+          if (!body.create_missing) fail(400, `${email} is not in the system`);
+          if (!str(r.name)) fail(400, `${email} is new, so the Name column is needed`);
+          u = userById(createEmployee({ ...r, email }, user.id).id);
+          result.new_employees++;
+        }
+        if (S.assignments.some((a) => a.module_id === m.id && a.user_id === u.id && a.status !== 'completed')) { result.skipped++; return; }
+        S.assignments.push({ id: nextId('assignments'), module_id: m.id, user_id: u.id, source: 'manual', assigned_by: user.id, note: str(body.note, 500), assigned_at: nowStr(), due_date: due, status: 'assigned', started_at: null, completed_at: null, best_score: null });
+        result.created++;
+      } catch (e) {
+        if (!e.status) throw e;
+        result.errors.push({ row: i + 2, email, error: e.message });
+      }
+    });
+    return result;
+  });
+  route('POST', '/uploads', 'admin', async ({ body, query }) => {
+    const name = String(query.get('name') || 'video.mp4').split(/[\\/]/).pop();
+    if (!(body instanceof Blob)) fail(400, 'Please upload a video file (MP4, WebM or MOV)');
+    if (!/\.(mp4|m4v|webm|ogg|mov)$/i.test(name)) fail(400, 'Please upload a video file (MP4, WebM or MOV)');
+    if (body.size > 1024 * 1024 * 1024) fail(413, 'This video is larger than 1 GB');
+    const id = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
+    await putVideo(id, body);
+    return { url: `demo-video:${id}/${encodeURIComponent(name)}`, size: body.size };
+  });
+  route('PUT', '/assignments/:id', 'admin', ({ params, body }) => {
+    if (!isDate(body.due_date)) fail(400, 'Due date must be YYYY-MM-DD');
+    const a = S.assignments.find((x) => x.id === Number(params.id));
+    if (!a) fail(404, 'Assignment not found');
+    a.due_date = body.due_date;
+    return { ok: true };
+  });
+  route('DELETE', '/assignments/:id', 'admin', ({ params }) => {
+    if (!deleteAssignments((a) => a.id === Number(params.id))) fail(404, 'Assignment not found');
+    return { ok: true };
+  });
+
+  route('GET', '/my/assignments', 'user', ({ user }) => S.assignments.filter((a) => a.user_id === user.id).map(decorate)
+    .sort((a, b) => (a.status === 'completed') - (b.status === 'completed') || (a.due_date > b.due_date ? 1 : a.due_date < b.due_date ? -1 : 0)));
+  route('GET', '/my/assignments/:id', 'user', ({ user, params }) => {
+    const a = decorate(myAssignment(user, params.id));
+    const m = moduleFull(a.module_id, false);
+    const done = new Set(S.lesson_progress.filter((p) => p.assignment_id === a.id).map((p) => p.lesson_id));
+    m.lessons = m.lessons.map((l) => ({ ...l, done: done.has(l.id) }));
+    const attempts = S.quiz_attempts.filter((t) => t.assignment_id === a.id).sort((x, y) => y.id - x.id).map(({ id, score, passed, created_at }) => ({ id, score, passed, created_at }));
+    return { assignment: a, module: m, attempts };
+  });
+  route('POST', '/my/assignments/:id/lessons/:lessonId/complete', 'user', ({ user, params }) => {
+    const a = myAssignment(user, params.id);
+    const l = S.lessons.find((x) => x.id === Number(params.lessonId) && x.module_id === a.module_id);
+    if (!l) fail(404, 'Lesson not found');
+    if (!S.lesson_progress.some((p) => p.assignment_id === a.id && p.lesson_id === l.id)) S.lesson_progress.push({ assignment_id: a.id, lesson_id: l.id, completed_at: nowStr() });
+    refreshStatus(a);
+    return decorate(a);
+  });
+  route('POST', '/my/assignments/:id/quiz', 'user', ({ user, params, body }) => {
+    const a = myAssignment(user, params.id);
+    const d = decorate(a);
+    if (d.lessons_done < d.lessons_total) fail(400, 'Finish all lessons before taking the quiz');
+    const qs = questionsOf(a.module_id);
+    if (!qs.length) fail(400, 'This module has no quiz');
+    const answers = (body.answers || []).map((x) => (x === null || x === undefined ? null : Number(x)));
+    const correct = qs.map((q, i) => answers[i] === q.correct_index);
+    const score = Math.round((correct.filter(Boolean).length / qs.length) * 100);
+    const passed = score >= d.pass_mark ? 1 : 0;
+    S.quiz_attempts.push({ id: nextId('quiz_attempts'), assignment_id: a.id, score, passed, answers: JSON.stringify(answers), created_at: nowStr() });
+    a.best_score = Math.max(a.best_score || 0, score);
+    refreshStatus(a);
+    return { score, passed: !!passed, pass_mark: d.pass_mark, results: qs.map((q, i) => ({ correct: correct[i], correct_index: passed ? q.correct_index : undefined })), assignment: decorate(a) };
+  });
+
+  // ---------- fetch shim ----------
+  const realFetch = window.fetch ? window.fetch.bind(window) : null;
+  window.fetch = async (input, opts = {}) => {
+    const url = new URL(typeof input === 'string' ? input : input.url, 'http://demo.local');
+    if (!url.pathname.startsWith('/api/')) return realFetch(input, opts);
+    const path = url.pathname.slice(4);
+    const method = (opts.method || 'GET').toUpperCase();
+    const reply = (status, data) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+    try {
+      for (const r of routes) {
+        if (r.method !== method) continue;
+        const m = path.match(r.re);
+        if (!m) continue;
+        const params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
+        const user = S.session ? S.users.find((u) => u.id === S.session && u.active) : null;
+        if (r.role && !user) fail(401, 'Please sign in');
+        if (r.role === 'admin' && user.role !== 'admin') fail(403, 'Admins only');
+        const body = opts.body instanceof Blob ? opts.body : opts.body ? JSON.parse(opts.body) : {};
+        const result = await r.fn({ params, query: url.searchParams, body, user });
+        save();
+        return reply(200, result);
+      }
+      fail(404, 'Not found');
+    } catch (e) {
+      if (!e.status) console.error(e);
+      return reply(e.status || 500, { error: e.status ? e.message : 'Something went wrong' });
+    }
+    return reply(500, { error: 'Something went wrong' });
+  };
+})();
+
+document.getElementById('reset-demo').addEventListener('click', () => window.LMS_RESET_DEMO());
+</script>
+<script>
+// Learning Hub frontend: a small hash-routed single-page app with no build step.
+'use strict';
+
+const state = { user: null, config: { password: true, demoAccounts: true } };
+const BRAND = window.LMS_BRAND || null;
+if (BRAND) document.title = `${BRAND.product} · ${BRAND.company}`;
+const app = document.getElementById('app');
+const dialog = document.getElementById('dialog');
+
+// ---------- utilities ----------
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = (sel, el = document) => el.querySelector(sel);
+const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+
+function todayStr() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+function addDays(dateStr, n) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + Number(n || 0));
+  return d.toISOString().slice(0, 10);
+}
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s.length === 10 ? `${s}T00:00:00` : `${s.replace(' ', 'T')}Z`);
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+async function api(path, { method = 'GET', body } = {}) {
+  const res = await fetch(`/api${path}`, {
+    method,
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : {},
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && path !== '/login') {
+    state.user = null;
+    renderLogin();
+    throw new Error(data.error || 'Please sign in');
+  }
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+let toastTimer;
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type}`;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 3500);
+}
+
+function statusBadge(a) {
+  if (a.status === 'completed') return '<span class="badge green">Completed</span>';
+  if (a.overdue) return '<span class="badge red">Overdue</span>';
+  if (a.status === 'in_progress') return '<span class="badge amber">In progress</span>';
+  return '<span class="badge">Not started</span>';
+}
+const sourceBadge = (s) => (s === 'onboarding' ? '<span class="badge blue">Onboarding</span>' : '<span class="badge">Assigned</span>');
+const progressBar = (p, done) => `<div class="progress-row"><div class="progress ${done ? 'done' : ''}" style="flex:1"><span style="width:${p}%"></span></div><span class="pct">${p}%</span></div>`;
+const pct = (n, d) => (d ? Math.round((n / d) * 100) : 0);
+
+// Minimal, safe markdown: headings, bullets, bold, italics, links. Input is escaped first.
+function renderContent(text) {
+  const inline = (s) => s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  let html = '';
+  let list = false;
+  let para = [];
+  const flush = () => { if (para.length) { html += `<p>${para.join(' ')}</p>`; para = []; } };
+  for (const raw of esc(text).split('\n')) {
+    const line = raw.trim();
+    if (/^[-*] /.test(line)) {
+      flush();
+      if (!list) { html += '<ul>'; list = true; }
+      html += `<li>${inline(line.slice(2))}</li>`;
+      continue;
+    }
+    if (list) { html += '</ul>'; list = false; }
+    if (!line) { flush(); continue; }
+    const h = line.match(/^(#{1,3}) (.*)$/);
+    if (h) { flush(); const n = h[1].length + 1; html += `<h${n}>${inline(h[2])}</h${n}>`; continue; }
+    para.push(inline(line));
+  }
+  flush();
+  if (list) html += '</ul>';
+  return html;
+}
+
+const isUploadedVideo = (url) => /^\/uploads\//.test(url || '') || /^demo-video:/.test(url || '')
+  || /^https:\/\/[\w-]+\.public\.blob\.vercel-storage\.com\//.test(url || '');
+// Server uploads are "<12 hex>-name.mp4"; online (Blob) uploads are "name-<random suffix>.mp4".
+const uploadedName = (url) => decodeURIComponent(String(url).split(/[?#]/)[0].split('/').pop().replace(/^[a-f0-9]{12}-/, '').replace(/-[A-Za-z0-9]{20,40}(\.\w+)$/, '$1'));
+function uploadedVideoTag(url) {
+  if (url.startsWith('demo-video:')) return `<video data-demo-video="${esc(url.slice(11).split('/')[0])}" controls preload="metadata"></video>`;
+  return `<video src="${esc(url)}" controls preload="metadata"></video>`;
+}
+// Uploaded videos in the demo live in the browser; this swaps in the real source after render.
+const hydrateVideos = (root) => window.LMS_HYDRATE_VIDEOS?.(root);
+
+function renderVideo(url) {
+  if (!url) return '';
+  if (isUploadedVideo(url)) return `<div class="video">${uploadedVideoTag(url)}</div>`;
+  if (window.LMS_DEMO) return /^https?:\/\//.test(url) ? `<p><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">▶ Watch the lesson video ↗</a></p>` : '';
+  const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  if (yt) return `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${yt[1]}" allowfullscreen allow="encrypted-media; picture-in-picture"></iframe></div>`;
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeo) return `<div class="video"><iframe src="https://player.vimeo.com/video/${vimeo[1]}" allowfullscreen></iframe></div>`;
+  if (/\.(mp4|webm|ogg)(\?|$)/i.test(url)) return `<div class="video"><video src="${esc(url)}" controls></video></div>`;
+  if (/^https?:\/\//.test(url)) return `<p><a class="btn" href="${esc(url)}" target="_blank" rel="noopener">Open lesson resource ↗</a></p>`;
+  return '';
+}
+
+const MAX_VIDEO_BYTES = 1024 * 1024 * 1024;
+async function uploadVideo(file, onStatus) {
+  if (!/^video\//.test(file.type) && !/\.(mp4|webm|mov|m4v|ogg)$/i.test(file.name)) throw new Error('Please choose a video file (MP4, WebM or MOV)');
+  if (file.size > MAX_VIDEO_BYTES) throw new Error('This video is larger than 1 GB. Please compress it and try again.');
+  const label = `Uploading ${file.name} (${(file.size / 1048576).toFixed(1)} MB)`;
+  onStatus?.(`${label}…`);
+  if (state.config.blobUploads) {
+    // Online: the video goes straight from the browser to Vercel Blob storage.
+    await loadScript('/vendor/blob-upload.js');
+    const blob = await window.BlobUpload.upload(`videos/${file.name.replace(/[^\w.-]+/g, '-')}`, file, {
+      access: 'public',
+      handleUploadUrl: '/api/uploads/blob',
+      multipart: file.size > 50 * 1048576,
+      onUploadProgress: ({ percentage }) => onStatus?.(`${label}: ${Math.round(percentage)}%`),
+    }).catch((e) => { throw new Error(e.message?.replace(/^Vercel Blob: /, '') || 'Upload failed'); });
+    onStatus?.('');
+    return blob.url;
+  }
+  const res = await fetch(`/api/uploads?name=${encodeURIComponent(file.name)}`, {
+    method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  onStatus?.('');
+  return data.url;
+}
+
+function loadScript(src) {
+  loadScript.cache ||= {};
+  return (loadScript.cache[src] ||= new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => { delete loadScript.cache[src]; reject(new Error('Could not load the uploader. Please refresh and try again.')); };
+    document.head.appendChild(s);
+  }));
+}
+
+// ---------- shell ----------
+const GOOGLE_ICON = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
+
+function renderLogin() {
+  const cfg = state.config;
+  // A failed Google sign-in comes back as ?login_error=…; show it once and tidy the address bar.
+  const loginError = new URLSearchParams(location.search).get('login_error') || renderLogin.error;
+  if (loginError && location.search) history.replaceState(null, '', location.pathname + location.hash);
+  renderLogin.error = loginError; // survives a re-render during startup
+  const domains = (cfg.domains || []).map((d) => `@${d}`).join(' or ');
+  app.innerHTML = `
+    <div class="login"><form class="card" id="login-form">
+      ${BRAND?.logo ? `<img class="login-logo" src="${esc(BRAND.logo)}" alt="${esc(BRAND.company)}">` : ''}
+      <h1>${esc(BRAND?.product || 'Learning Hub')}</h1>
+      <p>Sign in to continue your learning.</p>
+      ${loginError ? `<div class="login-error" role="alert">${esc(loginError)}</div>` : ''}
+      ${cfg.google ? `<a class="btn google-btn" id="google-signin" href="/api/auth/google">${GOOGLE_ICON} Sign in with Google</a>
+        ${domains ? `<div class="hint login-hint">Use your company account (${esc(domains)}).</div>` : ''}` : ''}
+      ${cfg.google && cfg.password ? '<div class="login-or"><span>or</span></div>' : ''}
+      ${cfg.password ? `
+      <div class="field"><label for="email">Work email</label><input type="email" id="email" required autocomplete="username"></div>
+      <div class="field"><label for="password">Password</label><input type="password" id="password" required autocomplete="current-password"></div>
+      <button class="primary" style="width:100%;justify-content:center">Sign in</button>` : ''}
+      ${cfg.demoAccounts ? `<div class="demo"><strong>Demo accounts</strong><br>Admin: admin@company.com / admin123<br>Employee: priya@company.com / welcome123
+        ${window.LMS_DEMO ? '<div class="quick"><button type="button" class="small" data-as="admin@company.com|admin123">Try as admin (HR)</button><button type="button" class="small" data-as="priya@company.com|welcome123">Try as employee</button></div>' : ''}</div>` : ''}
+    </form></div>`;
+  $$('[data-as]').forEach((b) => b.addEventListener('click', () => {
+    [$('#email').value, $('#password').value] = b.dataset.as.split('|');
+    $('#login-form').requestSubmit();
+  }));
+  $('#login-form').addEventListener('submit', async (e) => {
+    if (!cfg.password) { e.preventDefault(); return; }
+    e.preventDefault();
+    try {
+      await api('/login', { method: 'POST', body: { email: $('#email').value, password: $('#password').value } });
+      await boot();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+function renderShell() {
+  const admin = state.user.role === 'admin';
+  const links = admin
+    ? [['#/dashboard', 'Dashboard'], ['#/employees', 'Employees'], ['#/modules', 'Modules'], ['#/assignments', 'Assignments & progress']]
+    : [];
+  app.innerHTML = `
+    <div class="shell">
+      <nav class="sidebar">
+        ${BRAND?.logoOnDark
+          ? `<div class="brand with-logo"><img class="brand-logo" src="${esc(BRAND.logoOnDark)}" alt="${esc(BRAND.company)}"><div class="brand-sub">${esc(BRAND.product)}</div></div>`
+          : '<div class="brand"><span class="brand-mark"><svg width="18" height="18" viewBox="0 0 32 32"><path d="M4 12l12-6 12 6-12 6z M9 15v6c0 2 3.5 4 7 4s7-2 7-4v-6" fill="none" stroke="white" stroke-width="2.4" stroke-linejoin="round"/></svg></span>Learning Hub</div>'}
+        ${admin ? '<div class="nav-label">Manage</div>' : ''}
+        ${links.map(([h, t]) => `<a href="${h}" data-nav>${t}</a>`).join('')}
+        <div class="nav-label">Learn</div>
+        <a href="#/my" data-nav>My learning</a>
+        <a href="#/account" data-nav>Account</a>
+        <div class="me"><div><div class="name">${esc(state.user.name)}</div><div class="sub">${esc(state.user.email)}</div></div><button class="small" id="logout">Sign out</button></div>
+      </nav>
+      <main class="main" id="view"></main>
+    </div>`;
+  $('#logout').addEventListener('click', async () => {
+    await api('/logout', { method: 'POST', body: {} });
+    state.user = null;
+    location.hash = '';
+    renderLogin();
+  });
+}
+
+const routes = [
+  [/^#\/dashboard$/, viewDashboard, true],
+  [/^#\/employees$/, viewEmployees, true],
+  [/^#\/employees\/(\d+)$/, viewEmployee, true],
+  [/^#\/modules$/, viewModules, true],
+  [/^#\/modules\/new$/, () => viewModuleEditor(null), true],
+  [/^#\/modules\/(\d+)$/, viewModuleEditor, true],
+  [/^#\/assignments$/, viewAssignments, true],
+  [/^#\/my$/, viewMyLearning, false],
+  [/^#\/learn\/(\d+)(?:\/(quiz|\d+))?$/, viewLearn, false],
+  [/^#\/account$/, viewAccount, false],
+];
+
+async function router() {
+  if (!state.user) return;
+  if (!$('#view')) renderShell();
+  const hash = location.hash || '';
+  const match = routes.find(([re, , adminOnly]) => re.test(hash) && (!adminOnly || state.user.role === 'admin'));
+  if (!match) {
+    location.replace(state.user.role === 'admin' ? '#/dashboard' : '#/my');
+    return;
+  }
+  $$('[data-nav]').forEach((a) => a.classList.toggle('active', hash.startsWith(a.getAttribute('href'))
+    || (a.getAttribute('href') === '#/my' && hash.startsWith('#/learn'))));
+  const view = $('#view');
+  view.onclick = view.oninput = view.onchange = null; // drop handlers left by the previous page
+  try {
+    await match[1](...hash.match(match[0]).slice(1));
+  } catch (err) {
+    view.innerHTML = `<div class="card empty">${esc(err.message)}</div>`;
+  }
+  window.scrollTo(0, 0);
+}
+
+async function boot() {
+  if (!boot.configured) {
+    state.config = await api('/config').catch(() => state.config);
+    boot.configured = true;
+  }
+  try { state.user = await api('/me'); } catch { return; }
+  renderLogin.error = null;
+  renderShell();
+  router();
+}
+window.addEventListener('hashchange', router);
+// Empty the dialog when it closes so a slow-loading dialog never shows stale content.
+dialog.addEventListener('close', () => { dialog.innerHTML = ''; });
+
+// ---------- dialogs ----------
+function askConfirm(message, okLabel = 'Confirm') {
+  return new Promise((resolve) => {
+    openDialog(`<div class="dlg"><h2>Are you sure?</h2><p>${esc(message)}</p>
+      <div class="dlg-foot"><button type="button" id="confirm-no">Cancel</button><button type="button" class="primary" id="confirm-yes">${esc(okLabel)}</button></div></div>`, (dlg) => {
+      let answered = false;
+      const done = (v) => { answered = true; dialog.close(); resolve(v); };
+      $('#confirm-yes', dlg).addEventListener('click', () => done(true));
+      $('#confirm-no', dlg).addEventListener('click', () => done(false));
+      dialog.addEventListener('close', () => { if (!answered) resolve(false); }, { once: true });
+    });
+  });
+}
+
+function openDialog(html, onMount) {
+  dialog.innerHTML = html;
+  dialog.showModal();
+  $$('[data-close]', dialog).forEach((b) => b.addEventListener('click', () => dialog.close()));
+  if (onMount) onMount(dialog);
+}
+
+// ---------- spreadsheet reading (.xlsx and .csv, no library needed) ----------
+async function unzipEntries(buf) {
+  const view = new DataView(buf);
+  let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error('This file is not a valid Excel (.xlsx) file');
+  const count = view.getUint16(eocd + 10, true);
+  let p = view.getUint32(eocd + 16, true);
+  const entries = {};
+  const dec = new TextDecoder();
+  for (let n = 0; n < count; n++) {
+    const method = view.getUint16(p + 10, true);
+    const size = view.getUint32(p + 20, true);
+    const nameLen = view.getUint16(p + 28, true);
+    const extraLen = view.getUint16(p + 30, true);
+    const commentLen = view.getUint16(p + 32, true);
+    const local = view.getUint32(p + 42, true);
+    const name = dec.decode(new Uint8Array(buf, p + 46, nameLen));
+    const start = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
+    entries[name] = { method, data: new Uint8Array(buf, start, size) };
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return async (name) => {
+    const e = entries[name];
+    if (!e) return null;
+    if (e.method === 0) return dec.decode(e.data);
+    const stream = new Blob([e.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Response(stream).text();
+  };
+}
+
+const xmlNodes = (el, tag) => [...el.getElementsByTagNameNS('*', tag)];
+const xmlText = (el) => xmlNodes(el, 't').map((t) => t.textContent).join('');
+
+async function readSpreadsheet(file) {
+  if (/\.xls$/i.test(file.name)) throw new Error('Old .xls files are not supported. In Excel, use File > Save As > Excel Workbook (.xlsx).');
+  if (/\.(csv|txt)$/i.test(file.name)) {
+    return (await file.text()).split(/\r?\n/).filter((l) => l.trim()).map((line) => {
+      const cells = []; let cur = ''; let q = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+        else if (c === '"') q = true; else if (c === ',') { cells.push(cur); cur = ''; } else cur += c;
+      }
+      cells.push(cur);
+      return cells.map((c) => c.trim());
+    });
+  }
+  const read = await unzipEntries(await file.arrayBuffer());
+  const parse = (xml) => new DOMParser().parseFromString(xml, 'application/xml');
+  const sharedXml = await read('xl/sharedStrings.xml');
+  const shared = sharedXml ? xmlNodes(parse(sharedXml), 'si').map(xmlText) : [];
+  // Use the first sheet in the workbook.
+  let sheetPath = 'xl/worksheets/sheet1.xml';
+  const wb = await read('xl/workbook.xml');
+  const rels = await read('xl/_rels/workbook.xml.rels');
+  if (wb && rels) {
+    const first = xmlNodes(parse(wb), 'sheet')[0];
+    const rid = first && (first.getAttribute('r:id') || first.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'));
+    const rel = xmlNodes(parse(rels), 'Relationship').find((r) => r.getAttribute('Id') === rid);
+    if (rel) sheetPath = `xl/${rel.getAttribute('Target').replace(/^\/?xl\//, '').replace(/^\//, '')}`;
+  }
+  const sheetXml = await read(sheetPath);
+  if (!sheetXml) throw new Error('Could not find a sheet in this file');
+  const colIndex = (ref) => [...ref.replace(/\d+/g, '')].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+  return xmlNodes(parse(sheetXml), 'row').map((row) => {
+    const out = [];
+    xmlNodes(row, 'c').forEach((c, i) => {
+      const ref = c.getAttribute('r');
+      const idx = ref ? colIndex(ref) : i;
+      const type = c.getAttribute('t');
+      const v = xmlNodes(c, 'v')[0]?.textContent ?? '';
+      out[idx] = type === 's' ? shared[Number(v)] ?? '' : type === 'inlineStr' ? xmlText(c) : v;
+    });
+    return Array.from(out, (x) => String(x ?? '').trim());
+  }).filter((r) => r.some(Boolean));
+}
+
+const HEADER_KEYS = {
+  email: ['email', 'emailid', 'emailaddress', 'workemail', 'officialemail', 'officialemailid', 'mail'],
+  name: ['name', 'fullname', 'employeename', 'empname'],
+  department: ['department', 'dept', 'function', 'team'],
+  designation: ['designation', 'title', 'jobtitle', 'position'],
+  joining_date: ['joiningdate', 'dateofjoining', 'doj', 'joindate', 'startdate'],
+};
+
+function excelDate(v) {
+  if (/^\d+(\.\d+)?$/.test(v) && Number(v) > 20000) {
+    return new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(v)) * 864e5).toISOString().slice(0, 10);
+  }
+  const dmy = v.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  return v;
+}
+
+// Turns sheet rows into employee records using the header row.
+function rowsToPeople(rows) {
+  if (!rows.length) throw new Error('The sheet is empty');
+  const header = rows[0].map((h) => h.toLowerCase().replace(/[^a-z]/g, ''));
+  const col = {};
+  for (const [key, names] of Object.entries(HEADER_KEYS)) col[key] = header.findIndex((h) => names.includes(h));
+  if (col.email < 0) throw new Error('Add a column called "Email" in the first row of the sheet');
+  return rows.slice(1).map((r) => {
+    const get = (k) => (col[k] >= 0 ? r[col[k]] || '' : '');
+    return { email: get('email').toLowerCase(), name: get('name'), department: get('department'), designation: get('designation'), joining_date: get('joining_date') ? excelDate(get('joining_date')) : '' };
+  });
+}
+
+async function openAssignDialog({ moduleId = '', userIds = [], onDone, tab = 'pick' } = {}) {
+  const [modules, employees, departments] = await Promise.all([api('/modules'), api('/employees'), api('/departments')]);
+  const active = employees.filter((e) => e.active);
+  const byEmail = new Map(employees.map((e) => [e.email.toLowerCase(), e]));
+  const selected = new Set(userIds.map(Number));
+  let people = null;
+  openDialog(`
+    <form id="assign-form">
+      <h2>Assign a module</h2>
+      <div class="field"><label>Module</label>
+        <select name="module_id" required><option value="">Choose a module…</option>
+          ${modules.filter((m) => m.published).map((m) => `<option value="${m.id}" data-days="${m.due_days}" ${String(m.id) === String(moduleId) ? 'selected' : ''}>${esc(m.title)}</option>`).join('')}
+        </select></div>
+      <div class="tabs"><button type="button" data-tab="pick">Choose employees</button><button type="button" data-tab="upload">Upload Excel sheet (bulk)</button></div>
+      <div class="field" id="tab-pick">
+        <div class="filters" style="margin-bottom:6px">
+          <input type="search" id="pick-search" placeholder="Search name or email">
+          <select id="pick-dept"><option value="">All departments</option>${departments.map((d) => `<option>${esc(d)}</option>`).join('')}</select>
+          <button type="button" class="small" id="pick-all">Select shown</button>
+          <button type="button" class="small" id="pick-none">Clear</button>
+        </div>
+        <div class="pick-list" id="pick-list">
+          ${active.map((e) => `<label data-dept="${esc(e.department)}" data-text="${esc(`${e.name} ${e.email}`.toLowerCase())}"><input type="checkbox" value="${e.id}" ${selected.has(e.id) ? 'checked' : ''}> ${esc(e.name)} <span class="sub">${esc(e.department || '')} · ${esc(e.email)}</span></label>`).join('')}
+        </div>
+        <div class="hint" id="pick-count"></div>
+      </div>
+      <div class="field" id="tab-upload" hidden>
+        <div class="sample-file">
+          <div><strong>Step 1.</strong> Download the sample file, fill in one person per row and save it.<br><span class="sub">Email is required. Name, Department, Designation and Joining Date are optional.</span></div>
+          <a class="btn" id="download-sample" href="${esc(window.LMS_TEMPLATE_URL || '/templates/bulk-assign-template.xlsx')}" download="bulk-assign-sample.xlsx">⬇ Download sample file</a>
+        </div>
+        <div class="hint" style="margin:10px 0 6px"><strong>Step 2.</strong> Upload the filled-in file here.</div>
+        <div class="drop" id="drop">Drag an Excel file here, or <button type="button" class="small" id="choose-file">Choose file</button><input type="file" id="sheet-file" accept=".xlsx,.csv" hidden></div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="create-missing" checked> Also add people who aren't in the system yet (they get their onboarding modules too)</label>
+        <div id="sheet-preview"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Due date</label><input type="date" name="due_date" required></div>
+        <div class="field"><label>Note (optional)</label><input type="text" name="note" placeholder="e.g. Required after policy update"></div>
+      </div>
+      <div class="hint">Employees who already have this module open are skipped. Completed modules can be assigned again as a refresher.</div>
+      <div id="assign-errors"></div>
+      <div class="dlg-foot"><button type="button" data-close>Cancel</button><button class="primary" id="assign-submit">Assign</button></div>
+    </form>`, (dlg) => {
+    const form = $('#assign-form', dlg);
+    // Inside the claude.ai viewer a plain download link is blocked, so the demo saves the sample through the viewer.
+    if (window.LMS_DEMO && window.claude?.use) {
+      $('#download-sample', dlg).addEventListener('click', async (e) => {
+        e.preventDefault();
+        const downloads = await window.claude.use('downloads').catch(() => null);
+        if (!downloads) { toast('Downloading works in the hosted version', 'error'); return; }
+        const data = Uint8Array.from(atob(e.currentTarget.href.split(',')[1]), (c) => c.charCodeAt(0));
+        downloads.save({ filename: 'bulk-assign-sample.xlsx', data }).catch((err) => {
+          if (err?.code !== 'declined') toast('Could not download the sample file here', 'error');
+        });
+      });
+    }
+    const sel = form.module_id;
+    const due = form.due_date;
+    let current = tab;
+    const showTab = (t) => {
+      current = t;
+      $$('[data-tab]', dlg).forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+      $('#tab-pick', dlg).hidden = t !== 'pick';
+      $('#tab-upload', dlg).hidden = t !== 'upload';
+    };
+    $$('[data-tab]', dlg).forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+    showTab(tab);
+    const setDue = () => { const o = sel.selectedOptions[0]; due.value = addDays(todayStr(), o?.dataset.days || 7); };
+    setDue();
+    sel.addEventListener('change', setDue);
+    const count = () => { $('#pick-count', dlg).textContent = `${$$('#pick-list input:checked', dlg).length} selected`; };
+    const filter = () => {
+      const q = $('#pick-search', dlg).value.toLowerCase();
+      const d = $('#pick-dept', dlg).value;
+      $$('#pick-list label', dlg).forEach((l) => { l.hidden = (q && !l.dataset.text.includes(q)) || (d && l.dataset.dept !== d); });
+    };
+    $('#pick-search', dlg).addEventListener('input', filter);
+    $('#pick-dept', dlg).addEventListener('change', filter);
+    $('#pick-all', dlg).addEventListener('click', () => { $$('#pick-list label:not([hidden]) input', dlg).forEach((i) => { i.checked = true; }); count(); });
+    $('#pick-none', dlg).addEventListener('click', () => { $$('#pick-list input', dlg).forEach((i) => { i.checked = false; }); count(); });
+    $('#pick-list', dlg).addEventListener('change', count);
+    count();
+
+    // Bulk upload
+    const renderPreview = () => {
+      const box = $('#sheet-preview', dlg);
+      if (!people) { box.innerHTML = ''; return; }
+      const create = $('#create-missing', dlg).checked;
+      const rowsHtml = people.map((p, i) => {
+        const existing = byEmail.get(p.email);
+        let status;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) status = '<span class="badge red">Invalid email</span>';
+        else if (existing && !existing.active) status = '<span class="badge red">Deactivated</span>';
+        else if (existing) status = '<span class="badge green">Employee found</span>';
+        else if (create && p.name) status = '<span class="badge blue">Will be added</span>';
+        else status = `<span class="badge red">${create ? 'Name missing' : 'Not in system'}</span>`;
+        return `<tr><td class="num sub">${i + 2}</td><td>${esc(p.name || existing?.name || '')}<div class="sub">${esc(p.email)}</div></td><td>${esc(p.department || existing?.department || '')}</td><td>${status}</td></tr>`;
+      }).join('');
+      const ok = people.filter((p) => { const e = byEmail.get(p.email); return e ? e.active : create && p.name && /@/.test(p.email); }).length;
+      box.innerHTML = `<div class="hint" style="margin-top:10px"><strong>${people.length}</strong> row${people.length === 1 ? '' : 's'} read · <strong>${ok}</strong> ready to assign</div>
+        <div class="preview-table"><table><tr><th class="num">Row</th><th>Employee</th><th>Department</th><th>Status</th></tr>${rowsHtml}</table></div>`;
+    };
+    const loadFile = async (file) => {
+      if (!file) return;
+      try {
+        people = rowsToPeople(await readSpreadsheet(file));
+        $('#drop', dlg).firstChild.textContent = `📄 ${file.name} · `;
+        renderPreview();
+      } catch (err) { people = null; renderPreview(); toast(err.message, 'error'); }
+    };
+    $('#choose-file', dlg).addEventListener('click', () => $('#sheet-file', dlg).click());
+    $('#sheet-file', dlg).addEventListener('change', (e) => loadFile(e.target.files[0]));
+    $('#create-missing', dlg).addEventListener('change', renderPreview);
+    const drop = $('#drop', dlg);
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); loadFile(e.dataTransfer.files[0]); });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        if (current === 'upload') {
+          if (!people) throw new Error('Choose an Excel file first');
+          const r = await api('/assignments/bulk', { method: 'POST', body: {
+            module_id: sel.value, due_date: due.value, note: form.note.value, rows: people, create_missing: $('#create-missing', dlg).checked,
+          } });
+          toast(`Assigned to ${r.created} employee${r.created === 1 ? '' : 's'}${r.new_employees ? ` (${r.new_employees} newly added)` : ''}${r.skipped ? `, ${r.skipped} skipped (already assigned)` : ''}`);
+          onDone?.();
+          if (r.errors.length) {
+            $('#assign-errors', dlg).innerHTML = `<div class="result fail">${r.errors.length} row(s) not assigned:<br>${r.errors.map((x) => `Row ${x.row}: ${esc(x.error)}`).join('<br>')}</div>`;
+            return;
+          }
+          dialog.close();
+          return;
+        }
+        const r = await api('/assignments', { method: 'POST', body: {
+          module_id: sel.value, due_date: due.value, note: form.note.value,
+          user_ids: $$('#pick-list input:checked', dlg).map((i) => Number(i.value)),
+        } });
+        dialog.close();
+        toast(`Assigned to ${r.created} employee${r.created === 1 ? '' : 's'}${r.skipped ? `, ${r.skipped} skipped (already assigned)` : ''}`);
+        onDone?.();
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  });
+}
+
+function openEmployeeDialog(emp, onDone) {
+  const isNew = !emp;
+  emp = emp || { joining_date: todayStr(), role: 'employee', active: 1 };
+  openDialog(`
+    <form id="emp-form">
+      <h2>${isNew ? 'Add employee' : 'Edit employee'}</h2>
+      <div class="row">
+        <div class="field"><label>Full name</label><input type="text" name="name" required value="${esc(emp.name)}"></div>
+        <div class="field"><label>Work email</label><input type="email" name="email" required value="${esc(emp.email)}"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Department</label><input type="text" name="department" value="${esc(emp.department)}" placeholder="e.g. Sales"></div>
+        <div class="field"><label>Designation</label><input type="text" name="designation" value="${esc(emp.designation)}"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Joining date</label><input type="date" name="joining_date" required value="${esc(emp.joining_date)}"></div>
+        <div class="field"><label>Role</label><select name="role"><option value="employee">Employee</option><option value="admin" ${emp.role === 'admin' ? 'selected' : ''}>Admin</option></select></div>
+      </div>
+      <div class="field"><label>${isNew ? 'Initial password' : 'Reset password'}</label><input type="text" name="password" placeholder="${isNew ? 'Leave blank for welcome123' : 'Leave blank to keep current'}"></div>
+      ${isNew
+        ? '<label class="check"><input type="checkbox" name="assign_onboarding" checked> Assign onboarding modules now (due dates count from the joining date)</label>'
+        : `<label class="check"><input type="checkbox" name="active" ${emp.active ? 'checked' : ''}> Active (inactive employees cannot sign in)</label>`}
+      <div class="dlg-foot"><button type="button" data-close>Cancel</button><button class="primary">${isNew ? 'Add employee' : 'Save'}</button></div>
+    </form>`, (dlg) => {
+    const form = $('#emp-form', dlg);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = Object.fromEntries(['name', 'email', 'department', 'designation', 'joining_date', 'role', 'password'].map((k) => [k, form[k].value]));
+      try {
+        if (isNew) {
+          body.assign_onboarding = form.assign_onboarding.checked;
+          const r = await api('/employees', { method: 'POST', body });
+          toast(`Employee added${r.onboarding_assigned ? ` with ${r.onboarding_assigned} onboarding module${r.onboarding_assigned === 1 ? '' : 's'}` : ''}`);
+        } else {
+          body.active = form.active.checked;
+          await api(`/employees/${emp.id}`, { method: 'PUT', body });
+          toast('Employee saved');
+        }
+        dialog.close();
+        onDone?.();
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  });
+}
+
+function openImportDialog(onDone) {
+  openDialog(`
+    <form id="import-form">
+      <h2>Import employees</h2>
+      <p class="sub">Paste CSV rows: <code>name,email,department,designation,joining_date</code>. A header row is optional. Joining date is YYYY-MM-DD (blank means today). Everyone starts with the password <code>welcome123</code>.</p>
+      <div class="field"><textarea name="csv" placeholder="Rahul Verma,rahul@company.com,Engineering,Backend Engineer,2026-10-20"></textarea></div>
+      <label class="check"><input type="checkbox" name="assign_onboarding" checked> Assign onboarding modules automatically</label>
+      <div id="import-errors"></div>
+      <div class="dlg-foot"><button type="button" data-close>Close</button><button class="primary">Import</button></div>
+    </form>`, (dlg) => {
+    const form = $('#import-form', dlg);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const r = await api('/employees/import', { method: 'POST', body: { csv: form.csv.value, assign_onboarding: form.assign_onboarding.checked } });
+        toast(`Imported ${r.created} employee${r.created === 1 ? '' : 's'}, ${r.onboarding_assigned} onboarding assignment${r.onboarding_assigned === 1 ? '' : 's'}`);
+        onDone?.();
+        if (r.errors.length) {
+          $('#import-errors', dlg).innerHTML = `<div class="result fail">${r.errors.length} row(s) skipped:<br>${r.errors.map((x) => `Row ${x.row}: ${esc(x.error)}`).join('<br>')}</div>`;
+        } else dialog.close();
+      } catch (err) { toast(err.message, 'error'); }
+    });
+  });
+}
+
+// ---------- admin views ----------
+async function viewDashboard() {
+  const d = await api('/dashboard');
+  const t = d.totals;
+  $('#view').innerHTML = `
+    <div class="page-head"><div><h1>Dashboard</h1><p>Training status across the organisation.</p></div>
+      <div class="actions"><button id="bulk">Bulk assign from Excel</button><button class="primary" id="assign">Assign a module</button></div></div>
+    <div class="stats">
+      <div class="stat"><div class="label">Active employees</div><div class="value">${t.employees}</div></div>
+      <div class="stat"><div class="label">Published modules</div><div class="value">${t.modules}</div></div>
+      <div class="stat"><div class="label">Assignments</div><div class="value">${t.assignments}</div></div>
+      <div class="stat green"><div class="label">Completion rate</div><div class="value">${pct(t.completed, t.assignments)}%</div></div>
+      <div class="stat"><div class="label">In progress</div><div class="value">${t.in_progress}</div></div>
+      <div class="stat red"><div class="label">Overdue</div><div class="value">${t.overdue}</div></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card flush"><h2>Completion by module</h2><div class="table-wrap"><table>
+        <tr><th>Module</th><th class="num">Assigned</th><th class="num">Overdue</th><th style="width:160px">Completed</th></tr>
+        ${d.byModule.map((m) => `<tr><td><a href="#/modules/${m.id}">${esc(m.title)}</a> ${m.is_onboarding ? '<span class="badge blue">Onboarding</span>' : ''}</td><td class="num">${m.assigned}</td><td class="num">${m.overdue || ''}</td><td>${progressBar(pct(m.completed, m.assigned), m.assigned && m.completed === m.assigned)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No modules yet</td></tr>'}
+      </table></div></div>
+      <div class="card flush"><h2>Completion by department</h2><div class="table-wrap"><table>
+        <tr><th>Department</th><th class="num">Assigned</th><th class="num">Overdue</th><th style="width:160px">Completed</th></tr>
+        ${d.byDepartment.map((x) => `<tr><td>${esc(x.department)}</td><td class="num">${x.assigned}</td><td class="num">${x.overdue || ''}</td><td>${progressBar(pct(x.completed, x.assigned), x.assigned && x.completed === x.assigned)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No assignments yet</td></tr>'}
+      </table></div></div>
+      <div class="card flush"><h2>Overdue</h2><div class="table-wrap"><table>
+        <tr><th>Employee</th><th>Module</th><th>Due</th></tr>
+        ${d.overdue.map((a) => `<tr><td><a href="#/employees/${a.user_id}">${esc(a.user_name)}</a></td><td>${esc(a.module_title)}</td><td><span class="badge red">${fmtDate(a.due_date)}</span></td></tr>`).join('') || '<tr><td colspan="3" class="empty">Nothing overdue 🎉</td></tr>'}
+      </table></div></div>
+      <div class="card flush"><h2>New joiners (last 30 days)</h2><div class="table-wrap"><table>
+        <tr><th>Employee</th><th>Department</th><th>Joined</th></tr>
+        ${d.newJoiners.map((u) => `<tr><td><a href="#/employees/${u.id}">${esc(u.name)}</a><div class="sub">${esc(u.designation)}</div></td><td>${esc(u.department)}</td><td>${fmtDate(u.joining_date)}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">No recent joiners</td></tr>'}
+      </table></div></div>
+      <div class="card flush" style="grid-column:1/-1"><h2>Recently completed</h2><div class="table-wrap"><table>
+        <tr><th>Employee</th><th>Module</th><th class="num">Score</th><th>Completed</th></tr>
+        ${d.recent.map((a) => `<tr><td><a href="#/employees/${a.user_id}">${esc(a.user_name)}</a></td><td>${esc(a.module_title)}</td><td class="num">${a.best_score ?? '–'}${a.best_score != null ? '%' : ''}</td><td>${fmtDate(a.completed_at)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No completions yet</td></tr>'}
+      </table></div></div>
+    </div>`;
+  $('#assign').addEventListener('click', () => openAssignDialog({ onDone: router }));
+  $('#bulk').addEventListener('click', () => openAssignDialog({ onDone: router, tab: 'upload' }));
+}
+
+async function viewEmployees() {
+  const employees = await api('/employees');
+  $('#view').innerHTML = `
+    <div class="page-head"><div><h1>Employees</h1><p>New employees get onboarding modules automatically when you add them.</p></div>
+      <div class="actions"><button id="import">Import CSV</button><button class="primary" id="add">Add employee</button></div></div>
+    <div class="filters"><input type="search" id="search" placeholder="Search name, email or department"></div>
+    <div class="card flush"><div class="table-wrap"><table id="emp-table">
+      <tr><th>Name</th><th>Department</th><th>Joined</th><th class="num">Assigned</th><th class="num">Completed</th><th class="num">Overdue</th><th></th></tr>
+      ${employees.map((e) => `<tr data-text="${esc(`${e.name} ${e.email} ${e.department}`.toLowerCase())}">
+        <td><a href="#/employees/${e.id}">${esc(e.name)}</a> ${e.role === 'admin' ? '<span class="badge blue">Admin</span>' : ''} ${e.active ? '' : '<span class="badge">Inactive</span>'}<div class="sub">${esc(e.email)}</div></td>
+        <td>${esc(e.department)}<div class="sub">${esc(e.designation)}</div></td>
+        <td>${fmtDate(e.joining_date)}</td>
+        <td class="num">${e.assigned}</td><td class="num">${e.completed}</td>
+        <td class="num">${e.overdue ? `<span class="badge red">${e.overdue}</span>` : ''}</td>
+        <td class="num"><button class="small" data-assign="${e.id}">Assign</button></td></tr>`).join('')}
+    </table></div></div>`;
+  $('#add').addEventListener('click', () => openEmployeeDialog(null, router));
+  $('#import').addEventListener('click', () => openImportDialog(router));
+  $('#search').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    $$('#emp-table tr[data-text]').forEach((tr) => { tr.hidden = q && !tr.dataset.text.includes(q); });
+  });
+  $$('[data-assign]').forEach((b) => b.addEventListener('click', () => openAssignDialog({ userIds: [b.dataset.assign], onDone: router })));
+}
+
+function assignmentRows(list, { showEmployee = true, showModule = true } = {}) {
+  if (!list.length) return `<tr><td colspan="8" class="empty">No assignments</td></tr>`;
+  return list.map((a) => `<tr>
+    ${showEmployee ? `<td><a href="#/employees/${a.user_id}">${esc(a.user_name)}</a><div class="sub">${esc(a.user_department)}</div></td>` : ''}
+    ${showModule ? `<td>${esc(a.module_title)}${a.note ? `<div class="sub">${esc(a.note)}</div>` : ''}</td>` : ''}
+    <td>${sourceBadge(a.source)}<div class="sub">${fmtDate(a.assigned_at)}${a.assigned_by_name ? ` by ${esc(a.assigned_by_name)}` : ''}</div></td>
+    <td>${fmtDate(a.due_date)}</td>
+    <td>${statusBadge(a)}</td>
+    <td style="min-width:140px">${progressBar(a.progress, a.status === 'completed')}</td>
+    <td class="num">${a.best_score != null ? `${a.best_score}%` : '–'}</td>
+    <td class="num"><button class="small" data-due="${a.id}" data-date="${a.due_date}">Due date</button> <button class="small danger" data-remove="${a.id}">Remove</button></td>
+  </tr>`).join('');
+}
+
+function bindAssignmentActions(onChange) {
+  $$('[data-remove]').forEach((b) => b.addEventListener('click', async () => {
+    if (!(await askConfirm('Remove this assignment? The employee\'s progress on it will be deleted.', 'Remove'))) return;
+    try { await api(`/assignments/${b.dataset.remove}`, { method: 'DELETE' }); toast('Assignment removed'); onChange(); }
+    catch (err) { toast(err.message, 'error'); }
+  }));
+  $$('[data-due]').forEach((b) => b.addEventListener('click', () => {
+    openDialog(`<form class="dlg" id="due-form"><h2>Change due date</h2>
+      <div class="field"><input type="date" name="due" value="${b.dataset.date}" required></div>
+      <div class="dlg-foot"><button type="button" data-close>Cancel</button><button class="primary">Save</button></div></form>`, (dlg) => {
+      $('#due-form', dlg).addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try { await api(`/assignments/${b.dataset.due}`, { method: 'PUT', body: { due_date: e.target.due.value } }); dialog.close(); toast('Due date updated'); onChange(); }
+        catch (err) { toast(err.message, 'error'); }
+      });
+    });
+  }));
+}
+
+async function viewEmployee(id) {
+  const e = await api(`/employees/${id}`);
+  const done = e.assignments.filter((a) => a.status === 'completed').length;
+  const overdue = e.assignments.filter((a) => a.overdue).length;
+  $('#view').innerHTML = `
+    <div class="page-head"><div><a href="#/employees" class="sub">← Employees</a><h1>${esc(e.name)} ${e.active ? '' : '<span class="badge">Inactive</span>'}</h1>
+      <p>${esc(e.designation)}${e.designation && e.department ? ' · ' : ''}${esc(e.department)} · ${esc(e.email)} · Joined ${fmtDate(e.joining_date)}</p></div>
+      <div class="actions"><button id="edit">Edit</button><button id="onboard">Assign onboarding</button><button class="primary" id="assign">Assign a module</button></div></div>
+    <div class="stats">
+      <div class="stat"><div class="label">Assigned</div><div class="value">${e.assignments.length}</div></div>
+      <div class="stat green"><div class="label">Completed</div><div class="value">${done}</div></div>
+      <div class="stat red"><div class="label">Overdue</div><div class="value">${overdue}</div></div>
+    </div>
+    <div class="card flush"><div class="table-wrap"><table>
+      <tr><th>Module</th><th>Source</th><th>Due</th><th>Status</th><th>Progress</th><th class="num">Score</th><th></th></tr>
+      ${assignmentRows(e.assignments, { showEmployee: false })}
+    </table></div></div>`;
+  $('#edit').addEventListener('click', () => openEmployeeDialog(e, router));
+  $('#assign').addEventListener('click', () => openAssignDialog({ userIds: [e.id], onDone: router }));
+  $('#onboard').addEventListener('click', async () => {
+    try {
+      const r = await api(`/employees/${e.id}/onboarding`, { method: 'POST', body: {} });
+      toast(r.assigned ? `Assigned ${r.assigned} onboarding module${r.assigned === 1 ? '' : 's'}` : 'All matching onboarding modules are already assigned');
+      router();
+    } catch (err) { toast(err.message, 'error'); }
+  });
+  bindAssignmentActions(router);
+}
+
+async function viewModules() {
+  const modules = await api('/modules');
+  $('#view').innerHTML = `
+    <div class="page-head"><div><h1>Modules</h1><p>Onboarding modules are assigned automatically to new joiners. Others are assigned as needed.</p></div>
+      <div class="actions"><a class="btn primary" href="#/modules/new">+ Create custom module</a></div></div>
+    <div class="card flush"><div class="table-wrap"><table>
+      <tr><th>Module</th><th>Type</th><th class="num">Lessons</th><th class="num">Questions</th><th class="num">Due in</th><th style="width:170px">Completion</th><th></th></tr>
+      ${modules.map((m) => `<tr>
+        <td><a href="#/modules/${m.id}">${esc(m.title)}</a> ${m.published ? '' : '<span class="badge">Draft</span>'}<div class="sub">${esc(m.category)}</div></td>
+        <td>${m.is_onboarding ? `<span class="badge blue">Onboarding</span><div class="sub">${m.onboarding_departments ? esc(m.onboarding_departments) : 'All departments'}</div>` : '<span class="badge">As needed</span>'}</td>
+        <td class="num">${m.lessons_count}</td><td class="num">${m.questions_count}</td><td class="num">${m.due_days} days</td>
+        <td>${progressBar(pct(m.completed, m.assigned), m.assigned && m.completed === m.assigned)}<div class="sub">${m.completed} of ${m.assigned} completed</div></td>
+        <td class="num"><button class="small" data-assign="${m.id}" ${m.published ? '' : 'disabled'}>Assign</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">No modules yet</td></tr>'}
+    </table></div></div>`;
+  $$('[data-assign]').forEach((b) => b.addEventListener('click', () => openAssignDialog({ moduleId: b.dataset.assign, onDone: router })));
+}
+
+async function viewModuleEditor(id) {
+  const draft = id ? await api(`/modules/${id}`) : {
+    title: '', description: '', category: '', is_onboarding: 0, onboarding_departments: '', due_days: 7, pass_mark: 70, published: 1,
+    lessons: [{ title: '', content: '', video_url: '' }], questions: [],
+  };
+  const view = $('#view');
+
+  const render = () => {
+    view.innerHTML = `
+      <div class="page-head"><div><a href="#/modules" class="sub">← Modules</a><h1>${id ? 'Edit module' : 'Create custom module'}</h1></div>
+        <div class="actions">${id ? '<button class="danger" id="delete">Delete</button>' : ''}<button class="primary" id="save">Save module</button></div></div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Details</h2>
+        <div class="field"><label>Title</label><input type="text" data-k="title" value="${esc(draft.title)}" placeholder="e.g. Information Security Basics"></div>
+        <div class="field"><label>Description</label><input type="text" data-k="description" value="${esc(draft.description)}"></div>
+        <div class="row">
+          <div class="field"><label>Category</label><input type="text" data-k="category" value="${esc(draft.category)}" placeholder="Onboarding, Compliance, Skills…"></div>
+          <div class="field"><label>Due within (days)</label><input type="number" min="0" data-k="due_days" value="${esc(draft.due_days)}"><div class="hint">From joining date for onboarding, from assignment otherwise.</div></div>
+          <div class="field"><label>Quiz pass mark (%)</label><input type="number" min="0" max="100" data-k="pass_mark" value="${esc(draft.pass_mark)}"></div>
+        </div>
+        <label class="check" style="margin-bottom:8px"><input type="checkbox" data-k="published" ${draft.published ? 'checked' : ''}> Published (draft modules can't be assigned)</label>
+        <label class="check"><input type="checkbox" data-k="is_onboarding" ${draft.is_onboarding ? 'checked' : ''}> Onboarding module: assign automatically when an employee joins</label>
+        <div class="field" style="margin:10px 0 0 24px" ${draft.is_onboarding ? '' : 'hidden'} id="dept-field"><label>Only for departments (comma separated, blank = everyone)</label><input type="text" data-k="onboarding_departments" value="${esc(draft.onboarding_departments)}" placeholder="e.g. Sales, Support"></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Lessons</h2>
+        <p class="sub" style="margin-top:-6px">Content supports simple formatting: <code># Heading</code>, <code>- bullet</code>, <code>**bold**</code>, <code>[link](https://…)</code>. Each lesson can have an uploaded video or a YouTube / Vimeo link.</p>
+        ${draft.lessons.map((l, i) => `
+          <div class="block">
+            <div class="block-head"><strong>Lesson ${i + 1}</strong><div class="actions">
+              <button class="small" data-move-lesson="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button class="small" data-move-lesson="${i}" data-dir="1" ${i === draft.lessons.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="small danger" data-del-lesson="${i}" ${draft.lessons.length === 1 ? 'disabled' : ''}>Remove</button></div></div>
+            <div class="field"><label>Title</label><input type="text" data-lesson="${i}" data-f="title" value="${esc(l.title)}"></div>
+            <div class="field"><label>Video (optional)</label>
+              ${isUploadedVideo(l.video_url)
+                ? `<div class="upload-row"><span class="badge green">🎬 ${esc(uploadedName(l.video_url))}</span><button type="button" class="small" data-upload="${i}">Replace video</button><button type="button" class="small danger" data-clear-video="${i}">Remove video</button></div>
+                   <div class="lesson-preview">${uploadedVideoTag(l.video_url)}</div>`
+                : `<div class="upload-row"><button type="button" class="small" data-upload="${i}">⬆ Upload video file</button><span class="sub">MP4, WebM or MOV, up to 1 GB · or paste a YouTube / Vimeo link:</span></div>
+                   <input type="url" data-lesson="${i}" data-f="video_url" value="${esc(l.video_url)}" placeholder="https://www.youtube.com/watch?v=…" style="margin-top:6px">`}
+              <div class="upload-status" id="upload-status-${i}"></div>
+              <input type="file" accept="video/mp4,video/webm,video/quicktime,video/ogg,.mp4,.webm,.mov,.m4v,.ogg" data-file="${i}" hidden>
+            </div>
+            <div class="field"><label>Content</label><textarea data-lesson="${i}" data-f="content">${esc(l.content)}</textarea></div>
+          </div>`).join('')}
+        <button id="add-lesson">+ Add lesson</button>
+      </div>
+      <div class="card">
+        <h2>Quiz</h2>
+        <p class="sub" style="margin-top:-6px">Optional. Learners take it after finishing all lessons and must reach the pass mark to complete the module. Select the radio button next to the correct answer.</p>
+        ${draft.questions.map((q, i) => `
+          <div class="block">
+            <div class="block-head"><strong>Question ${i + 1}</strong><button class="small danger" data-del-q="${i}">Remove</button></div>
+            <div class="field"><input type="text" data-q="${i}" data-f="text" value="${esc(q.text)}" placeholder="Question"></div>
+            ${q.options.map((o, j) => `<div class="option-row">
+              <input type="radio" name="correct-${i}" data-correct="${i}" value="${j}" ${q.correct_index === j ? 'checked' : ''} title="Correct answer">
+              <input type="text" data-q="${i}" data-opt="${j}" value="${esc(o)}" placeholder="Option ${j + 1}">
+              <button class="small" data-del-opt="${i}" data-j="${j}" ${q.options.length <= 2 ? 'disabled' : ''}>✕</button></div>`).join('')}
+            <button class="small link" data-add-opt="${i}" ${q.options.length >= 6 ? 'disabled' : ''}>+ Add option</button>
+          </div>`).join('')}
+        <button id="add-q">+ Add question</button>
+      </div>`;
+    hydrateVideos(view);
+  };
+
+  render();
+
+  const onUpload = async (e) => {
+    const input = e.target;
+    if (!input.files[0]) return;
+    const i = Number(input.dataset.file);
+    const status = $(`#upload-status-${i}`);
+    const save = $('#save');
+    try {
+      save.disabled = true;
+      draft.lessons[i].video_url = await uploadVideo(input.files[0], (msg) => { status.textContent = msg; });
+      toast('Video uploaded');
+      render();
+    } catch (err) {
+      status.textContent = '';
+      toast(err.message, 'error');
+    } finally {
+      if ($('#save')) $('#save').disabled = false;
+    }
+  };
+
+  // Inputs write straight into the draft; structural changes re-render.
+  view.oninput = view.onchange = (e) => {
+    const t = e.target;
+    if (t.dataset.file !== undefined) { if (e.type === 'change') onUpload(e); return; }
+    if (t.dataset.k) {
+      draft[t.dataset.k] = t.type === 'checkbox' ? (t.checked ? 1 : 0) : t.value;
+      if (t.dataset.k === 'is_onboarding') $('#dept-field').hidden = !t.checked;
+    } else if (t.dataset.lesson !== undefined) draft.lessons[t.dataset.lesson][t.dataset.f] = t.value;
+    else if (t.dataset.opt !== undefined) draft.questions[t.dataset.q].options[t.dataset.opt] = t.value;
+    else if (t.dataset.q !== undefined) draft.questions[t.dataset.q][t.dataset.f] = t.value;
+    else if (t.dataset.correct !== undefined) draft.questions[t.dataset.correct].correct_index = Number(t.value);
+  };
+
+  view.onclick = async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const d = b.dataset;
+    if (d.upload !== undefined) { $(`[data-file="${d.upload}"]`).click(); return; }
+    if (d.clearVideo !== undefined) { draft.lessons[d.clearVideo].video_url = ''; render(); return; }
+    if (b.id === 'add-lesson') { draft.lessons.push({ title: '', content: '', video_url: '' }); render(); }
+    else if (d.delLesson !== undefined) { draft.lessons.splice(Number(d.delLesson), 1); render(); }
+    else if (d.moveLesson !== undefined) {
+      const i = Number(d.moveLesson); const j = i + Number(d.dir);
+      [draft.lessons[i], draft.lessons[j]] = [draft.lessons[j], draft.lessons[i]];
+      render();
+    } else if (b.id === 'add-q') { draft.questions.push({ text: '', options: ['', '', '', ''], correct_index: null }); render(); }
+    else if (d.delQ !== undefined) { draft.questions.splice(Number(d.delQ), 1); render(); }
+    else if (d.addOpt !== undefined) { draft.questions[d.addOpt].options.push(''); render(); }
+    else if (d.delOpt !== undefined) {
+      const q = draft.questions[d.delOpt]; const j = Number(d.j);
+      q.options.splice(j, 1);
+      if (q.correct_index === j) q.correct_index = null; else if (q.correct_index > j) q.correct_index--;
+      render();
+    } else if (b.id === 'save') {
+      try {
+        const body = { ...draft, questions: draft.questions.map((q) => ({ ...q, options: q.options.filter((o) => o.trim()) })) };
+        // Keep the correct answer pointing at the same option after blank options are dropped.
+        body.questions.forEach((q, i) => {
+          const orig = draft.questions[i];
+          if (orig.correct_index != null) q.correct_index = q.options.indexOf(orig.options[orig.correct_index]);
+        });
+        await api(id ? `/modules/${id}` : '/modules', { method: id ? 'PUT' : 'POST', body });
+        toast('Module saved');
+        location.hash = '#/modules';
+      } catch (err) { toast(err.message, 'error'); }
+    } else if (b.id === 'delete') {
+      if (!(await askConfirm('Delete this module? All assignments and progress for it will be deleted. To hide it instead, untick Published.', 'Delete module'))) return;
+      try { await api(`/modules/${id}`, { method: 'DELETE' }); toast('Module deleted'); location.hash = '#/modules'; }
+      catch (err) { toast(err.message, 'error'); }
+    }
+  };
+}
+
+async function viewAssignments() {
+  const [modules, departments] = await Promise.all([api('/modules'), api('/departments')]);
+  const params = new URLSearchParams(sessionStorage.getItem('assignFilters') || '');
+  $('#view').innerHTML = `
+    <div class="page-head"><div><h1>Assignments & progress</h1><p>Every module assigned to every employee, with live progress.</p></div>
+      <div class="actions"><a class="btn" id="export" href="#">Export CSV</a><button id="bulk">Bulk assign from Excel</button><button class="primary" id="assign">Assign a module</button></div></div>
+    <div class="filters" id="filters">
+      <input type="search" name="search" placeholder="Search employee or module" value="${esc(params.get('search') || '')}">
+      <select name="module_id"><option value="">All modules</option>${modules.map((m) => `<option value="${m.id}">${esc(m.title)}</option>`).join('')}</select>
+      <select name="department"><option value="">All departments</option>${departments.map((d) => `<option>${esc(d)}</option>`).join('')}</select>
+      <select name="status"><option value="">Any status</option><option value="assigned">Not started</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="overdue">Overdue</option></select>
+      <select name="source"><option value="">Onboarding + as needed</option><option value="onboarding">Onboarding</option><option value="manual">Assigned as needed</option></select>
+    </div>
+    <div class="card flush"><div class="table-wrap"><table>
+      <thead><tr><th>Employee</th><th>Module</th><th>Source</th><th>Due</th><th>Status</th><th>Progress</th><th class="num">Score</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div></div>`;
+  const filters = $('#filters');
+  ['module_id', 'department', 'status', 'source'].forEach((k) => { filters.querySelector(`[name=${k}]`).value = params.get(k) || ''; });
+  const query = () => {
+    const p = new URLSearchParams();
+    $$('[name]', filters).forEach((el) => { if (el.value) p.set(el.name, el.value); });
+    return p;
+  };
+  const load = async () => {
+    const p = query();
+    sessionStorage.setItem('assignFilters', p.toString());
+    $('#export').href = `/api/assignments.csv?${p}`;
+    if (window.LMS_DEMO) $('#export').onclick = (e) => { e.preventDefault(); toast('CSV export works in the installed version'); };
+    const rows = await api(`/assignments?${p}`);
+    $('#rows').innerHTML = assignmentRows(rows);
+    bindAssignmentActions(load);
+  };
+  let timer;
+  filters.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(load, 250); });
+  $('#assign').addEventListener('click', () => openAssignDialog({ moduleId: query().get('module_id') || '', onDone: load }));
+  $('#bulk').addEventListener('click', () => openAssignDialog({ moduleId: query().get('module_id') || '', onDone: load, tab: 'upload' }));
+  await load();
+}
+
+// ---------- learner views ----------
+async function viewMyLearning() {
+  const list = await api('/my/assignments');
+  const open = list.filter((a) => a.status !== 'completed');
+  const done = list.filter((a) => a.status === 'completed');
+  const card = (a) => `
+    <div class="card module-card">
+      <div class="meta">${sourceBadge(a.source)} ${statusBadge(a)} ${a.module_category && a.module_category.toLowerCase() !== 'onboarding' ? `<span class="badge">${esc(a.module_category)}</span>` : ''}</div>
+      <h3>${esc(a.module_title)}</h3>
+      <p>${esc(a.module_description)}</p>
+      ${a.note ? `<div class="sub">Note: ${esc(a.note)}</div>` : ''}
+      ${progressBar(a.progress, a.status === 'completed')}
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="sub">${a.status === 'completed' ? `Completed ${fmtDate(a.completed_at)}` : `Due ${fmtDate(a.due_date)}`} · ${a.lessons_total} lesson${a.lessons_total === 1 ? '' : 's'}${a.questions_total ? ' + quiz' : ''}</span>
+        <a class="btn ${a.status === 'completed' ? '' : 'primary'} small" href="#/learn/${a.id}">${a.status === 'completed' ? 'Review' : a.status === 'in_progress' ? 'Continue' : 'Start'}</a>
+      </div>
+    </div>`;
+  $('#view').innerHTML = `
+    <div class="page-head"><div><h1>My learning</h1><p>Hi ${esc(state.user.name.split(' ')[0])}, here are the modules assigned to you.</p></div></div>
+    <div class="stats">
+      <div class="stat"><div class="label">To do</div><div class="value">${open.length}</div></div>
+      <div class="stat red"><div class="label">Overdue</div><div class="value">${open.filter((a) => a.overdue).length}</div></div>
+      <div class="stat green"><div class="label">Completed</div><div class="value">${done.length}</div></div>
+    </div>
+    <h2>To do</h2>
+    ${open.length ? `<div class="module-cards">${open.map(card).join('')}</div>` : '<div class="card empty">You\'re all caught up. Nice work!</div>'}
+    ${done.length ? `<h2 style="margin-top:28px">Completed</h2><div class="module-cards">${done.map(card).join('')}</div>` : ''}`;
+}
+
+async function viewLearn(id, step) {
+  const { assignment: a, module: m, attempts } = await api(`/my/assignments/${id}`);
+  const lessonsDone = m.lessons.every((l) => l.done);
+  const hasQuiz = m.questions.length > 0;
+  const passed = attempts.some((t) => t.passed);
+  // Default to the first unfinished lesson (or the quiz once lessons are done).
+  if (step === undefined) {
+    const next = m.lessons.find((l) => !l.done);
+    step = next ? String(next.id) : hasQuiz && !passed ? 'quiz' : String(m.lessons[0].id);
+  }
+  const lessonIndex = m.lessons.findIndex((l) => String(l.id) === step);
+
+  const toc = `
+    <div class="card toc">
+      <div style="padding:8px 10px 12px"><strong>${esc(m.title)}</strong>${progressBar(a.progress, a.status === 'completed')}</div>
+      ${m.lessons.map((l, i) => `<a href="#/learn/${a.id}/${l.id}" class="${String(l.id) === step ? 'active' : ''}"><span class="dot ${l.done ? 'done' : ''}">${l.done ? '✓' : ''}</span>${i + 1}. ${esc(l.title)}</a>`).join('')}
+      ${hasQuiz ? `<a href="#/learn/${a.id}/quiz" class="${step === 'quiz' ? 'active' : ''} ${lessonsDone ? '' : 'locked'}"><span class="dot ${passed ? 'done' : ''}">${passed ? '✓' : ''}</span>Quiz ${lessonsDone ? '' : '🔒'}</a>` : ''}
+    </div>`;
+
+  let body;
+  if (step === 'quiz' && hasQuiz) {
+    body = !lessonsDone
+      ? '<div class="empty">Finish all lessons to unlock the quiz.</div>'
+      : `<h2>Quiz</h2>
+         <p class="sub">${m.questions.length} question${m.questions.length === 1 ? '' : 's'} · pass mark ${a.pass_mark}%${attempts.length ? ` · best score ${a.best_score}% after ${attempts.length} attempt${attempts.length === 1 ? '' : 's'}` : ''}</p>
+         ${passed ? '<div class="result pass">You passed this quiz. You can retake it any time to refresh your knowledge.</div>' : ''}
+         <form id="quiz">
+           <div id="quiz-result"></div>
+           ${m.questions.map((q, i) => `<div class="question" data-i="${i}"><div class="q">${i + 1}. ${esc(q.text)}</div>
+             ${q.options.map((o, j) => `<label class="opt" data-j="${j}"><input type="radio" name="q${i}" value="${j}"> ${esc(o)}</label>`).join('')}</div>`).join('')}
+           <button class="primary">Submit answers</button>
+         </form>`;
+  } else {
+    const l = m.lessons[lessonIndex] || m.lessons[0];
+    const i = m.lessons.indexOf(l);
+    const nextHref = i < m.lessons.length - 1 ? `#/learn/${a.id}/${m.lessons[i + 1].id}` : hasQuiz ? `#/learn/${a.id}/quiz` : '#/my';
+    body = `
+      <div class="sub">Lesson ${i + 1} of ${m.lessons.length}</div>
+      <h2 style="font-size:22px;margin:4px 0 16px">${esc(l.title)}</h2>
+      ${renderVideo(l.video_url)}
+      <div class="lesson-content">${renderContent(l.content)}</div>
+      <div class="lesson-foot">
+        ${i > 0 ? `<a class="btn" href="#/learn/${a.id}/${m.lessons[i - 1].id}">← Previous</a>` : '<span></span>'}
+        ${l.done
+          ? `<a class="btn primary" href="${nextHref}">${i < m.lessons.length - 1 ? 'Next lesson →' : hasQuiz ? 'Go to quiz →' : 'Back to my learning'}</a>`
+          : `<button class="primary" id="complete" data-lesson="${l.id}" data-next="${nextHref}">Mark complete${i < m.lessons.length - 1 || hasQuiz ? ' & continue →' : ''}</button>`}
+      </div>`;
+  }
+
+  $('#view').innerHTML = `
+    <div class="page-head"><div><a href="#/my" class="sub">← My learning</a><h1>${esc(m.title)}</h1>
+      <p>${statusBadge(a)} · ${a.status === 'completed' ? `Completed ${fmtDate(a.completed_at)}` : `Due ${fmtDate(a.due_date)}`}</p></div></div>
+    <div class="player">${toc}<div class="card">${body}</div></div>`;
+  hydrateVideos($('#view'));
+
+  $('#complete')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    try {
+      const updated = await api(`/my/assignments/${a.id}/lessons/${b.dataset.lesson}/complete`, { method: 'POST', body: {} });
+      if (updated.status === 'completed' && a.status !== 'completed') toast('Module completed 🎉');
+      if (location.hash === b.dataset.next) router(); else location.hash = b.dataset.next;
+    } catch (err) { toast(err.message, 'error'); b.disabled = false; }
+  });
+
+  $('#quiz')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const answers = m.questions.map((_, i) => { const c = form.querySelector(`[name=q${i}]:checked`); return c ? Number(c.value) : null; });
+    if (answers.includes(null)) { toast('Please answer every question before submitting', 'error'); return; }
+    try {
+      const r = await api(`/my/assignments/${a.id}/quiz`, { method: 'POST', body: { answers } });
+      r.results.forEach((res, i) => {
+        const qEl = form.querySelector(`.question[data-i="${i}"]`);
+        qEl.classList.remove('right', 'wrong');
+        qEl.classList.add(res.correct ? 'right' : 'wrong');
+        if (res.correct_index !== undefined) qEl.querySelector(`label[data-j="${res.correct_index}"]`).classList.add('right');
+      });
+      $('#quiz-result').innerHTML = r.passed
+        ? `<div class="result pass">You scored ${r.score}% and passed! ${r.assignment.status === 'completed' ? 'This module is complete.' : ''} <a href="#/my">Back to my learning</a></div>`
+        : `<div class="result fail">You scored ${r.score}%. You need ${r.pass_mark}% to pass. Review the lessons and try again.</div>`;
+      $('#quiz-result').scrollIntoView({ behavior: 'smooth' });
+      if (r.passed && a.status !== 'completed') {
+        toast('Module completed 🎉');
+        // Reflect the new status without leaving the results on screen.
+        const done = r.assignment;
+        $('.page-head p').innerHTML = `${statusBadge(done)} · Completed ${fmtDate(done.completed_at)}`;
+        $('.toc .progress-row').outerHTML = progressBar(done.progress, true);
+        const quizDot = $('.toc a.active .dot');
+        if (quizDot) { quizDot.classList.add('done'); quizDot.textContent = '✓'; }
+      }
+    } catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+async function viewAccount() {
+  const u = state.user;
+  $('#view').innerHTML = `
+    <div class="page-head"><div><h1>Account</h1></div></div>
+    <div class="grid grid-2">
+      <div class="card"><h2>Profile</h2>
+        <p><strong>${esc(u.name)}</strong><br>${esc(u.email)}<br>${esc(u.designation)}${u.designation && u.department ? ' · ' : ''}${esc(u.department)}<br><span class="sub">Joined ${fmtDate(u.joining_date)}</span></p></div>
+      <form class="card" id="pw"><h2>Change password</h2>
+        <div class="field"><label>Current password</label><input type="password" name="current" required autocomplete="current-password"></div>
+        <div class="field"><label>New password</label><input type="password" name="next" required minlength="6" autocomplete="new-password"></div>
+        <button class="primary">Update password</button></form>
+    </div>`;
+  $('#pw').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try { await api('/me/password', { method: 'POST', body: { current: e.target.current.value, next: e.target.next.value } }); e.target.reset(); toast('Password updated'); }
+    catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+boot().then(() => { if (!state.user) renderLogin(); });
+
+</script>
