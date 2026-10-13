@@ -86,6 +86,10 @@ const db = {
 };
 
 // Runs fn in a transaction; nested calls join the outer transaction.
+// Lets the server hear about every new assignment (to email the employee), wherever it was created.
+let assignedHook = null;
+const onAssigned = (fn) => { assignedHook = fn; };
+
 function tx(fn) {
   if (txScope.getStore()) return fn();
   return driver.tx(fn);
@@ -230,7 +234,8 @@ async function assignOnboarding(userId, assignedBy = null) {
   for (const m of modules) {
     if (!departmentMatches(m.onboarding_departments, user.department)) continue;
     if (await exists.get(m.id, user.id)) continue;
-    await insert.run(m.id, user.id, assignedBy, addDays(user.joining_date, m.due_days));
+    const { lastInsertRowid } = await insert.run(m.id, user.id, assignedBy, addDays(user.joining_date, m.due_days));
+    assignedHook?.(lastInsertRowid);
     count++;
   }
   return count;
@@ -378,4 +383,4 @@ function ready({ withDemoUsers = true } = {}) {
   return readyPromise;
 }
 
-module.exports = { DB_PATH, REMOTE_URL, ready, db, tx, hashPassword, verifyPassword, today, addDays, assignOnboarding, refreshAssignmentStatus, departmentMatches };
+module.exports = { DB_PATH, REMOTE_URL, onAssigned, ready, db, tx, hashPassword, verifyPassword, today, addDays, assignOnboarding, refreshAssignmentStatus, departmentMatches };

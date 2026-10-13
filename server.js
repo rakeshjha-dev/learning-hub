@@ -1,10 +1,13 @@
-// Employee LMS server: JSON API + static frontend. No dependencies beyond Node 22.5+.
+// Employee LMS server: JSON API + static frontend. Runs locally on plain Node 22.5+; online it also uses the
+// packages in package.json (database, video storage, email).
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { AsyncLocalStorage } = require('node:async_hooks');
+const { MAIL_MODE, sendMail } = require('./mailer');
 const {
-  DB_PATH, ready, db, tx, hashPassword, verifyPassword, today, addDays, assignOnboarding, refreshAssignmentStatus,
+  DB_PATH, onAssigned, ready, db, tx, hashPassword, verifyPassword, today, addDays, assignOnboarding, refreshAssignmentStatus,
 } = require('./db');
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -318,6 +321,7 @@ route('GET', '/api/config', null, async () => ({
   demoAccounts: !GOOGLE_ENABLED,
   domains: ALLOWED_DOMAINS,
   blobUploads: BLOB_MODE || false,
+  email: MAIL_MODE || false,
 }));
 
 route('POST', '/api/login', null, async ({ req, body, res }) => {
@@ -601,9 +605,10 @@ async function assignmentInput(body) {
 // Returns false when the employee already has this module open; completed ones can be re-assigned (refreshers).
 async function assignOne({ moduleId, due, note }, userId, adminId) {
   if (await db.prepare("SELECT 1 FROM assignments WHERE module_id = ? AND user_id = ? AND status != 'completed'").get(moduleId, userId)) return false;
-  await db.prepare(
+  const { lastInsertRowid } = await db.prepare(
     `INSERT INTO assignments (module_id, user_id, source, assigned_by, note, due_date) VALUES (?, ?, 'manual', ?, ?, ?)`
   ).run(moduleId, userId, adminId, note, due);
+  queueEmail(lastInsertRowid);
   return true;
 }
 
@@ -887,10 +892,75 @@ async function serveUpload(req, res, pathname) {
   });
 }
 
+// ---------- assignment emails ----------
+// Every assignment created while handling a request is collected here and emailed once the request's work has
+// succeeded (one email per employee, listing all their new modules). An admin can untick "Email employees".
+const outbox = new AsyncLocalStorage();
+const queueEmail = (id) => { const box = outbox.getStore(); if (box?.open) box.ids.push(id); };
+onAssigned(queueEmail);
+
+const BRAND_NAME = process.env.BRAND_NAME || 'CarDekho Group Learning Hub';
+const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const prettyDate = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+function assignmentEmail(person, items, siteUrl) {
+  const many = items.length > 1;
+  const subject = many ? `${items.length} new learning modules assigned to you` : `New learning module: ${items[0].title}`;
+  const rows = items.map((a) => `
+    <tr><td style="padding:14px 16px;border:1px solid #eceef3;border-radius:8px;font-size:14px">
+      <div style="font-size:16px;font-weight:600;color:#24262B">${escHtml(a.title)}</div>
+      ${a.description ? `<div style="color:#5b5f6e;margin-top:4px">${escHtml(a.description)}</div>` : ''}
+      <div style="color:#5b5f6e;margin-top:8px">Due by <strong>${prettyDate(a.due_date)}</strong>${a.note ? ` · ${escHtml(a.note)}` : ''}</div>
+      <div style="margin-top:12px"><a href="${siteUrl}/#/learn/${a.id}" style="background:#F65C36;color:#fff;text-decoration:none;padding:9px 16px;border-radius:6px;display:inline-block;font-weight:600">Start module</a></div>
+    </td></tr><tr><td style="height:10px"></td></tr>`).join('');
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#24262B;max-width:560px;margin:0 auto">
+    <p style="font-size:13px;color:#F65C36;font-weight:700;letter-spacing:.3px">${escHtml(BRAND_NAME)}</p>
+    <p>Hi ${escHtml(person.name.split(' ')[0])},</p>
+    <p>${many ? 'These learning modules have' : 'A learning module has'} been assigned to you${items[0].by_name ? ` by ${escHtml(items[0].by_name)}` : ''}.</p>
+    <table role="presentation" style="width:100%;border-collapse:separate">${rows}</table>
+    <p style="color:#5b5f6e">Sign in at <a href="${siteUrl}" style="color:#F65C36">${siteUrl.replace(/^https?:\/\//, '')}</a> with your company Google account to see all your learning.</p>
+  </div>`;
+  const text = `Hi ${person.name.split(' ')[0]},\n\n${many ? 'These learning modules have' : 'A learning module has'} been assigned to you:\n\n${
+    items.map((a) => `- ${a.title} (due ${prettyDate(a.due_date)})${a.note ? ` - ${a.note}` : ''}\n  ${siteUrl}/#/learn/${a.id}`).join('\n')}\n\n${BRAND_NAME}`;
+  return { to: person.email, subject, html, text };
+}
+
+async function sendAssignmentEmails(ids, siteUrl) {
+  if (!ids.length || !MAIL_MODE) return null;
+  const list = await db.prepare(
+    `SELECT a.id, a.due_date, a.note, u.id AS user_id, u.name, u.email, u.active, m.title, m.description, ab.name AS by_name
+     FROM assignments a JOIN users u ON u.id = a.user_id JOIN modules m ON m.id = a.module_id LEFT JOIN users ab ON ab.id = a.assigned_by
+     WHERE a.id IN (${ids.map(() => '?').join(',')}) ORDER BY a.due_date`
+  ).all(...ids);
+  const byPerson = new Map();
+  for (const a of list) {
+    if (!a.active) continue;
+    if (!byPerson.has(a.user_id)) byPerson.set(a.user_id, { person: a, items: [] });
+    byPerson.get(a.user_id).items.push(a);
+  }
+  const jobs = [...byPerson.values()];
+  const result = { sent: 0, failed: 0 };
+  // A few at a time keeps mail servers happy with large bulk assignments.
+  for (let i = 0; i < jobs.length; i += 5) {
+    const batch = await Promise.allSettled(jobs.slice(i, i + 5).map(({ person, items }) => sendMail(assignmentEmail(person, items, siteUrl))));
+    batch.forEach((b) => {
+      if (b.status === 'fulfilled') result.sent++;
+      else { result.failed++; console.error('Assignment email failed:', b.reason?.message); }
+    });
+  }
+  return result;
+}
+
 async function handle(req, res) {
+  const box = { ids: [] };
+  return outbox.run(box, () => handleRequest(req, res, box));
+}
+
+async function handleRequest(req, res, box) {
   const url = new URL(req.url, 'http://localhost');
   try {
     await ready({ withDemoUsers: !GOOGLE_ENABLED });
+    box.open = true; // starter data created by ready() is never emailed
     if (url.pathname.startsWith('/api/')) {
       for (const r of routes) {
         if (r.method !== req.method) continue;
@@ -907,6 +977,12 @@ async function handle(req, res) {
           body = await readBody(req);
         }
         const result = await r.handler({ req, res, params, query: url.searchParams, body, user });
+        // Admins can untick "Email employees" when assigning.
+        const mail = body.notify === false ? null : await sendAssignmentEmails(box.ids, origin(req)).catch((e) => {
+          console.error('Assignment emails failed:', e.message);
+          return null;
+        });
+        if (mail && result && typeof result === 'object' && !Array.isArray(result)) result.emails = mail;
         if (result !== undefined && !res.writableEnded) send(res, 200, result);
         return;
       }

@@ -206,6 +206,7 @@ function renderLogin() {
   // Google which account to use when the browser is signed in to several.
   if (cfg.google && !loginError && !ssoDeclined && !store.get('sessionStorage', 'lms_signed_out') && !store.get('sessionStorage', 'lms_sso_tried')) {
     store.set('sessionStorage', 'lms_sso_tried', '1');
+    if (location.hash.length > 2) store.set('sessionStorage', 'lms_return', location.hash);
     app.innerHTML = '<div class="login"><div class="card"><p>Signing you in…</p></div></div>';
     const hint = store.get('localStorage', 'lms_last_email');
     location.href = `/api/auth/google?auto=1${hint ? `&hint=${encodeURIComponent(hint)}` : ''}`;
@@ -229,7 +230,10 @@ function renderLogin() {
       ${cfg.demoAccounts ? `<div class="demo"><strong>Demo accounts</strong><br>Admin: admin@company.com / admin123<br>Employee: priya@company.com / welcome123
         ${window.LMS_DEMO ? '<div class="quick"><button type="button" class="small" data-as="admin@company.com|admin123">Try as admin (HR)</button><button type="button" class="small" data-as="priya@company.com|welcome123">Try as employee</button></div>' : ''}</div>` : ''}
     </form></div>`;
-  $('#google-signin')?.addEventListener('click', () => store.set('sessionStorage', 'lms_signed_out', null));
+  $('#google-signin')?.addEventListener('click', () => {
+    store.set('sessionStorage', 'lms_signed_out', null);
+    if (location.hash.length > 2) store.set('sessionStorage', 'lms_return', location.hash);
+  });
   $$('[data-as]').forEach((b) => b.addEventListener('click', () => {
     [$('#email').value, $('#password').value] = b.dataset.as.split('|');
     $('#login-form').requestSubmit();
@@ -319,6 +323,9 @@ async function boot() {
   renderLogin.error = null;
   store.set('sessionStorage', 'lms_sso_tried', null);
   store.set('localStorage', 'lms_last_email', state.user.email);
+  // Google sign-in returns to the home page; go back to the page they were opening (e.g. a module link in an email).
+  const back = store.get('sessionStorage', 'lms_return');
+  if (back) { store.set('sessionStorage', 'lms_return', null); if (!location.hash || location.hash === '#/') history.replaceState(null, '', back); }
   renderShell();
   router();
 }
@@ -472,6 +479,9 @@ function demoDownload(link) {
   });
 }
 
+// " · 3 emails sent" after an assignment, when email is set up.
+const emailNote = (r) => !r.emails ? '' : ` · ${r.emails.sent} email${r.emails.sent === 1 ? '' : 's'} sent${r.emails.failed ? `, ${r.emails.failed} failed` : ''}`;
+
 async function openAssignDialog({ moduleId = '', userIds = [], onDone, tab = 'pick' } = {}) {
   const [modules, employees, departments] = await Promise.all([api('/modules'), api('/employees'), api('/departments')]);
   const active = employees.filter((e) => e.active);
@@ -513,6 +523,7 @@ async function openAssignDialog({ moduleId = '', userIds = [], onDone, tab = 'pi
         <div class="field"><label>Note (optional)</label><input type="text" name="note" placeholder="e.g. Required after policy update"></div>
       </div>
       <div class="hint">Employees who already have this module open are skipped. Completed modules can be assigned again as a refresher.</div>
+      <label class="check" style="margin-top:8px"><input type="checkbox" id="notify" ${state.config.email ? 'checked' : 'disabled'}> Email each employee about this assignment${state.config.email ? '' : ' <span class="sub">(email isn\'t set up yet)</span>'}</label>
       <div id="assign-errors"></div>
       <div class="dlg-foot"><button type="button" data-close>Cancel</button><button class="primary" id="assign-submit">Assign</button></div>
     </form>`, (dlg) => {
@@ -588,8 +599,9 @@ async function openAssignDialog({ moduleId = '', userIds = [], onDone, tab = 'pi
           if (!people) throw new Error('Choose an Excel file first');
           const r = await api('/assignments/bulk', { method: 'POST', body: {
             module_id: sel.value, due_date: due.value, note: form.note.value, rows: people, create_missing: $('#create-missing', dlg).checked,
+            notify: $('#notify', dlg).checked,
           } });
-          toast(`Assigned to ${r.created} employee${r.created === 1 ? '' : 's'}${r.new_employees ? ` (${r.new_employees} newly added)` : ''}${r.skipped ? `, ${r.skipped} skipped (already assigned)` : ''}`);
+          toast(`Assigned to ${r.created} employee${r.created === 1 ? '' : 's'}${r.new_employees ? ` (${r.new_employees} newly added)` : ''}${r.skipped ? `, ${r.skipped} skipped (already assigned)` : ''}${emailNote(r)}`);
           onDone?.();
           if (r.errors.length) {
             $('#assign-errors', dlg).innerHTML = `<div class="result fail">${r.errors.length} row(s) not assigned:<br>${r.errors.map((x) => `Row ${x.row}: ${esc(x.error)}`).join('<br>')}</div>`;
@@ -601,9 +613,10 @@ async function openAssignDialog({ moduleId = '', userIds = [], onDone, tab = 'pi
         const r = await api('/assignments', { method: 'POST', body: {
           module_id: sel.value, due_date: due.value, note: form.note.value,
           user_ids: $$('#pick-list input:checked', dlg).map((i) => Number(i.value)),
+          notify: $('#notify', dlg).checked,
         } });
         dialog.close();
-        toast(`Assigned to ${r.created} employee${r.created === 1 ? '' : 's'}${r.skipped ? `, ${r.skipped} skipped (already assigned)` : ''}`);
+        toast(`Assigned to ${r.created} employee${r.created === 1 ? '' : 's'}${r.skipped ? `, ${r.skipped} skipped (already assigned)` : ''}${emailNote(r)}`);
         onDone?.();
       } catch (err) { toast(err.message, 'error'); }
     });
@@ -644,7 +657,7 @@ function openEmployeeDialog(emp, onDone) {
         if (isNew) {
           body.assign_onboarding = form.assign_onboarding.checked;
           const r = await api('/employees', { method: 'POST', body });
-          toast(`Employee added${r.onboarding_assigned ? ` with ${r.onboarding_assigned} onboarding module${r.onboarding_assigned === 1 ? '' : 's'}` : ''}`);
+          toast(`Employee added${r.onboarding_assigned ? ` with ${r.onboarding_assigned} onboarding module${r.onboarding_assigned === 1 ? '' : 's'}` : ''}${emailNote(r)}`);
         } else {
           body.active = form.active.checked;
           await api(`/employees/${emp.id}`, { method: 'PUT', body });
@@ -706,7 +719,7 @@ function openImportDialog(onDone) {
         else if (form.csv.value.trim()) body.csv = form.csv.value;
         else throw new Error('Choose an Excel file first');
         const r = await api('/employees/import', { method: 'POST', body });
-        toast(`Added ${r.created} employee${r.created === 1 ? '' : 's'}, ${r.onboarding_assigned} onboarding assignment${r.onboarding_assigned === 1 ? '' : 's'}`);
+        toast(`Added ${r.created} employee${r.created === 1 ? '' : 's'}, ${r.onboarding_assigned} onboarding assignment${r.onboarding_assigned === 1 ? '' : 's'}${emailNote(r)}`);
         onDone?.();
         if (r.errors.length) {
           $('#import-errors', dlg).innerHTML = `<div class="result fail">${r.errors.length} row(s) skipped:<br>${r.errors.map((x) => `Row ${x.row}: ${esc(x.error)}`).join('<br>')}</div>`;

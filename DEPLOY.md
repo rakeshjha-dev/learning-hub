@@ -56,12 +56,32 @@ Open your site address and click **Sign in with Google**.
 - Anyone already signed in to Google with their company account is let in automatically, without clicking.
 - Admins can give or remove admin access from **Employees** (Make admin / Remove admin), and add many people at once with **Add from Excel**.
 
+## Step 7 (optional). Turn on assignment emails
+
+Employees get an email whenever a module is assigned to them, with a **Start module** button. The emails are sent from a company Google mailbox.
+
+1. Pick the mailbox the emails come from, for example `learning@cardekho.com` or your own work email, and sign in to it.
+2. Open https://myaccount.google.com/apppasswords. Type the name `Learning Hub` and click **Create**. Google shows a 16-letter password. Keep this window open. (If Google says the page isn't available, 2-Step Verification must be turned on first, or your Google Workspace admin has switched app passwords off. Ask IT to allow it.)
+3. In Vercel, open **Settings → Environment Variables** and add:
+
+| Name | Value |
+| --- | --- |
+| `SMTP_USER` | the mailbox from step 1 |
+| `SMTP_PASS` | the 16-letter password from step 2 (without spaces) |
+| `MAIL_FROM` | optional: the sender name and address people see, e.g. `CarDekho Learning Hub <learning@cardekho.com>` |
+| `APP_URL` | optional: the site address used in email links, e.g. `https://learning-hub-cardekho.vercel.app` |
+
+4. Open **Deployments**, click the three dots on the top one and choose **Redeploy**.
+
+When assigning a module, the **Email each employee about this assignment** box is ticked by default; untick it to assign quietly.
+
 ---
 
 ## Reference (for whoever maintains it)
 
 - `api/index.js` runs `server.js` as a Vercel function; `vercel.json` serves `public/` and rewrites `/api/*` to it.
 - Database: `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (set by the Turso integration). Tables and starter modules are created on first request. No demo accounts are created when Google sign-in is on.
-- Videos: `BLOB_READ_WRITE_TOKEN` (set by the Blob store). Browsers upload straight to Blob (`/api/uploads/blob` issues short-lived upload permissions, admins only, video files up to 1 GB). Blob URLs are public but unguessable.
+- Videos: `BLOB_READ_WRITE_TOKEN`, or `BLOB_STORE_ID` for stores that sign in by store id (set by the Blob store). Browsers upload straight to Blob (`/api/uploads/blob` issues short-lived upload permissions, admins only, video files up to 1 GB). Blob URLs are public but unguessable.
+- Email: `mailer.js` uses SMTP (`SMTP_USER`, `SMTP_PASS`, optional `SMTP_HOST` default smtp.gmail.com, `SMTP_PORT` default 465) or Resend (`RESEND_API_KEY` + `MAIL_FROM` on a verified domain). Each request's new assignments are emailed once it succeeds, one email per employee.
 - Optional: `ALLOW_PASSWORD_LOGIN=1` keeps email + password sign-in alongside Google; `APP_URL` fixes the site address used for the Google redirect (e.g. when using a custom domain).
 - Locally nothing changes: `npm start` still runs with no install, the built-in SQLite file and demo accounts.
