@@ -205,3 +205,5 @@ dialog .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; margin-to
 .login-error { background: var(--red-soft); color: var(--red); border-radius: 7px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
 .sample-file { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--primary-soft); border-radius: 8px; padding: 12px; font-size: 13px; }
 .sample-file .btn { white-space: nowrap; }
+.nowrap { white-space: nowrap; }
+details.sub summary { cursor: pointer; margin: 8px 0; }

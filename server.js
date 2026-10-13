@@ -320,19 +320,23 @@ route('POST', '/api/login', null, async ({ req, body, res }) => {
 });
 
 // Sign in with Google (OAuth 2.0 authorization code flow). Only verified emails on ALLOWED_DOMAINS get in.
-route('GET', '/api/auth/google', null, async ({ req, res }) => {
+route('GET', '/api/auth/google', null, async ({ req, res, query }) => {
   if (!GOOGLE_ENABLED) throw new HttpError(404, 'Google sign-in is not set up');
   const state = crypto.randomBytes(16).toString('hex');
+  // ?auto=1 is the silent attempt made when the sign-in page opens: if the person is already signed in to
+  // Google with one account, Google sends them straight back signed in; otherwise it returns an error
+  // and the sign-in page shows the button instead.
+  const auto = query.get('auto') === '1';
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: `${origin(req)}/api/auth/google/callback`,
     response_type: 'code',
     scope: 'openid email profile',
     state,
-    prompt: 'select_account',
+    prompt: auto ? 'none' : 'select_account',
   });
   if (ALLOWED_DOMAINS.length === 1) params.set('hd', ALLOWED_DOMAINS[0]); // pre-filters Google's account picker
-  res.writeHead(302, { Location: `${GOOGLE_AUTH_URL}?${params}`, 'Set-Cookie': cookie(req, 'g_state', state, 600) });
+  res.writeHead(302, { Location: `${GOOGLE_AUTH_URL}?${params}`, 'Set-Cookie': cookie(req, 'g_state', auto ? `${state}.auto` : state, 600) });
   res.end();
 });
 
@@ -342,8 +346,15 @@ route('GET', '/api/auth/google/callback', null, async ({ req, res, query }) => {
     res.end();
   };
   if (!GOOGLE_ENABLED) return fail('Google sign-in is not set up');
-  const expected = parseCookies(req).g_state;
-  if (query.get('error')) return fail('Google sign-in was cancelled');
+  const [expected, mode] = String(parseCookies(req).g_state || '').split('.');
+  if (query.get('error')) {
+    if (mode === 'auto') {
+      // The silent attempt didn't work (not signed in to Google, or several accounts): show the normal sign-in page.
+      res.writeHead(302, { Location: '/?sso=0', 'Set-Cookie': cookie(req, 'g_state', '', 0) });
+      return res.end();
+    }
+    return fail('Google sign-in was cancelled');
+  }
   if (!expected || query.get('state') !== expected) return fail('Your sign-in link expired. Please try again.');
 
   let claims;
@@ -459,21 +470,40 @@ route('GET', '/api/departments', 'admin', async () => (await db.prepare(
 route('POST', '/api/employees', 'admin', async ({ body, user }) => createEmployee(body, user.id));
 
 route('POST', '/api/employees/import', 'admin', async ({ body, user }) => {
-  const rows = parseCsv(body.csv);
-  if (rows.length && rows[0].some((c) => c.toLowerCase() === 'email')) rows.shift();
+  // Rows come either from an uploaded sheet (objects, header in row 1) or from pasted CSV text.
+  let rows;
+  let firstRow = 2;
+  if (Array.isArray(body.rows)) rows = body.rows.slice(0, 5000);
+  else {
+    const csv = parseCsv(body.csv);
+    firstRow = 1;
+    if (csv.length && csv[0].some((c) => c.toLowerCase() === 'email')) { csv.shift(); firstRow = 2; }
+    rows = csv.map(([name, email, department, designation, joining_date, role]) => ({ name, email, department, designation, joining_date, role }));
+  }
   const created = [];
   const errors = [];
   for (const [i, r] of rows.entries()) {
-    const [name, email, department, designation, joining_date] = r;
+    const email = str(r.email, 200).toLowerCase();
     try {
-      const out = await createEmployee({ name, email, department, designation, joining_date, assign_onboarding: body.assign_onboarding !== false }, user.id);
+      const role = String(r.role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'employee';
+      const out = await createEmployee({ ...r, email, role, assign_onboarding: body.assign_onboarding !== false }, user.id);
       created.push({ email, ...out });
     } catch (e) {
       if (!(e instanceof HttpError)) throw e;
-      errors.push({ row: i + 1, email, error: e.message });
+      errors.push({ row: i + firstRow, email, error: e.message });
     }
   }
   return { created: created.length, onboarding_assigned: created.reduce((s, c) => s + c.onboarding_assigned, 0), errors };
+});
+
+// Give or take away admin access in one click (Employees page).
+route('PUT', '/api/employees/:id/role', 'admin', async ({ params, body, user }) => {
+  const id = Number(params.id);
+  const role = body.role === 'admin' ? 'admin' : 'employee';
+  if (id === user.id && role !== 'admin') throw new HttpError(400, 'You cannot remove your own admin access');
+  const r = await db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+  if (!r.changes) throw new HttpError(404, 'Employee not found');
+  return { ok: true, role };
 });
 
 route('GET', '/api/employees/:id', 'admin', async ({ params }) => {
@@ -601,7 +631,7 @@ route('POST', '/api/assignments/bulk', 'admin', async ({ body, user }) => {
         if (!u) {
           if (!body.create_missing) throw new HttpError(400, `${email} is not in the system`);
           if (!str(r.name)) throw new HttpError(400, `${email} is new, so the Name column is needed`);
-          u = { id: (await createEmployee({ ...r, email }, user.id)).id };
+          u = { id: (await createEmployee({ ...r, email, role: 'employee' }, user.id)).id };
           result.new_employees++;
         }
         if (await assignOne(input, u.id, user.id)) result.created++;

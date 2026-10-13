@@ -349,15 +349,31 @@
   route('GET', '/departments', 'admin', () => [...new Set(S.users.map((u) => u.department).filter(Boolean))].sort());
   route('POST', '/employees', 'admin', ({ body, user }) => createEmployee(body, user.id));
   route('POST', '/employees/import', 'admin', ({ body, user }) => {
-    const rows = parseCsv(body.csv);
-    if (rows.length && rows[0].some((c) => c.toLowerCase() === 'email')) rows.shift();
+    let rows; let firstRow = 2;
+    if (Array.isArray(body.rows)) rows = body.rows;
+    else {
+      const csv = parseCsv(body.csv);
+      firstRow = 1;
+      if (csv.length && csv[0].some((c) => c.toLowerCase() === 'email')) { csv.shift(); firstRow = 2; }
+      rows = csv.map(([name, email, department, designation, joining_date, role]) => ({ name, email, department, designation, joining_date, role }));
+    }
     const created = []; const errors = [];
     rows.forEach((r, i) => {
-      const [name, email, department, designation, joining_date] = r;
-      try { created.push(createEmployee({ name, email, department, designation, joining_date, assign_onboarding: body.assign_onboarding !== false }, user.id)); }
-      catch (e) { errors.push({ row: i + 1, email, error: e.message }); }
+      const email = str(r.email, 200).toLowerCase();
+      const role = String(r.role || '').trim().toLowerCase() === 'admin' ? 'admin' : 'employee';
+      try { created.push(createEmployee({ ...r, email, role, assign_onboarding: body.assign_onboarding !== false }, user.id)); }
+      catch (e) { errors.push({ row: i + firstRow, email, error: e.message }); }
     });
     return { created: created.length, onboarding_assigned: created.reduce((s, c) => s + c.onboarding_assigned, 0), errors };
+  });
+  route('PUT', '/employees/:id/role', 'admin', ({ params, body, user }) => {
+    const id = Number(params.id);
+    const role = body.role === 'admin' ? 'admin' : 'employee';
+    if (id === user.id && role !== 'admin') fail(400, 'You cannot remove your own admin access');
+    const u = userById(id);
+    if (!u) fail(404, 'Employee not found');
+    u.role = role;
+    return { ok: true, role };
   });
   route('GET', '/employees/:id', 'admin', ({ params }) => {
     const u = userById(Number(params.id));
@@ -432,7 +448,7 @@
         if (!u) {
           if (!body.create_missing) fail(400, `${email} is not in the system`);
           if (!str(r.name)) fail(400, `${email} is new, so the Name column is needed`);
-          u = userById(createEmployee({ ...r, email }, user.id).id);
+          u = userById(createEmployee({ ...r, email, role: 'employee' }, user.id).id);
           result.new_employees++;
         }
         if (S.assignments.some((a) => a.module_id === m.id && a.user_id === u.id && a.status !== 'completed')) { result.skipped++; return; }

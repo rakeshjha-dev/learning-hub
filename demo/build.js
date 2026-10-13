@@ -29,6 +29,7 @@ const safe = (js) => js.replace(/<\/script/gi, '<\\/script');
 const seed = JSON.stringify({ buildDate: today(), tables }).replace(/</g, '\\u003c');
 
 const dataUri = (p, type = 'image/png') => `data:${type};base64,${fs.readFileSync(path.join(root, p)).toString('base64')}`;
+const employeeTemplate = dataUri('public/templates/employees-template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 const template = dataUri('public/templates/bulk-assign-template.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
 function build(file, brand) {
@@ -47,7 +48,8 @@ ${read('public/styles.css')}
 <dialog id="dialog"></dialog>
 <script>window.LMS_SEED = ${seed};
 window.LMS_BRAND = ${brand ? JSON.stringify(brand) : 'null'};
-window.LMS_TEMPLATE_URL = ${JSON.stringify(template)};</script>
+window.LMS_TEMPLATE_URL = ${JSON.stringify(template)};
+window.LMS_EMPLOYEE_TEMPLATE_URL = ${JSON.stringify(employeeTemplate)};</script>
 <script>
 ${safe(read('demo/mock-api.js'))}
 document.getElementById('reset-demo').addEventListener('click', () => window.LMS_RESET_DEMO());

@@ -53,6 +53,8 @@ Open your site address and click **Sign in with Google**.
 - People in `ADMIN_EMAILS` see the admin dashboard.
 - Anyone else with an allowed company email is added as an employee on their first sign-in and gets the onboarding modules automatically.
 - Anyone else (for example a personal @gmail.com) sees "Please use your company Google account".
+- Anyone already signed in to Google with their company account is let in automatically, without clicking.
+- Admins can give or remove admin access from **Employees** (Make admin / Remove admin), and add many people at once with **Add from Excel**.
 
 ---
 

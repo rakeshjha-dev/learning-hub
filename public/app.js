@@ -173,11 +173,27 @@ function loadScript(src) {
 // ---------- shell ----------
 const GOOGLE_ICON = '<svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>';
 
+// Small storage helpers: storage can be blocked (private windows), and sign-in must work without it.
+const store = {
+  get: (area, k) => { try { return window[area].getItem(k); } catch { return null; } },
+  set: (area, k, v) => { try { if (v == null) window[area].removeItem(k); else window[area].setItem(k, v); } catch { /* ignore */ } },
+};
+
 function renderLogin() {
   const cfg = state.config;
   // A failed Google sign-in comes back as ?login_error=…; show it once and tidy the address bar.
-  const loginError = new URLSearchParams(location.search).get('login_error') || renderLogin.error;
-  if (loginError && location.search) history.replaceState(null, '', location.pathname + location.hash);
+  const search = new URLSearchParams(location.search);
+  const loginError = search.get('login_error') || renderLogin.error;
+  const ssoDeclined = search.get('sso') === '0';
+  if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+  // Single sign-on: someone already signed in to Google with their company account gets in without a click.
+  // Tried once per tab, and not right after they pressed Sign out.
+  if (cfg.google && !loginError && !ssoDeclined && !store.get('localStorage', 'lms_signed_out') && !store.get('sessionStorage', 'lms_sso_tried')) {
+    store.set('sessionStorage', 'lms_sso_tried', '1');
+    app.innerHTML = '<div class="login"><div class="card"><p>Signing you in…</p></div></div>';
+    location.href = '/api/auth/google?auto=1';
+    return;
+  }
   renderLogin.error = loginError; // survives a re-render during startup
   const domains = (cfg.domains || []).map((d) => `@${d}`).join(' or ');
   app.innerHTML = `
@@ -196,6 +212,7 @@ function renderLogin() {
       ${cfg.demoAccounts ? `<div class="demo"><strong>Demo accounts</strong><br>Admin: admin@company.com / admin123<br>Employee: priya@company.com / welcome123
         ${window.LMS_DEMO ? '<div class="quick"><button type="button" class="small" data-as="admin@company.com|admin123">Try as admin (HR)</button><button type="button" class="small" data-as="priya@company.com|welcome123">Try as employee</button></div>' : ''}</div>` : ''}
     </form></div>`;
+  $('#google-signin')?.addEventListener('click', () => store.set('localStorage', 'lms_signed_out', null));
   $$('[data-as]').forEach((b) => b.addEventListener('click', () => {
     [$('#email').value, $('#password').value] = b.dataset.as.split('|');
     $('#login-form').requestSubmit();
@@ -232,6 +249,7 @@ function renderShell() {
     </div>`;
   $('#logout').addEventListener('click', async () => {
     await api('/logout', { method: 'POST', body: {} });
+    store.set('localStorage', 'lms_signed_out', '1'); // otherwise single sign-on would sign them straight back in
     state.user = null;
     location.hash = '';
     renderLogin();
@@ -282,6 +300,7 @@ async function boot() {
   }
   try { state.user = await api('/me'); } catch { return; }
   renderLogin.error = null;
+  store.set('sessionStorage', 'lms_sso_tried', null);
   renderShell();
   router();
 }
@@ -396,6 +415,7 @@ const HEADER_KEYS = {
   department: ['department', 'dept', 'function', 'team'],
   designation: ['designation', 'title', 'jobtitle', 'position'],
   joining_date: ['joiningdate', 'dateofjoining', 'doj', 'joindate', 'startdate'],
+  role: ['role', 'access', 'accesslevel', 'admin'],
 };
 
 function excelDate(v) {
@@ -416,7 +436,21 @@ function rowsToPeople(rows) {
   if (col.email < 0) throw new Error('Add a column called "Email" in the first row of the sheet');
   return rows.slice(1).map((r) => {
     const get = (k) => (col[k] >= 0 ? r[col[k]] || '' : '');
-    return { email: get('email').toLowerCase(), name: get('name'), department: get('department'), designation: get('designation'), joining_date: get('joining_date') ? excelDate(get('joining_date')) : '' };
+    return { email: get('email').toLowerCase(), name: get('name'), department: get('department'), designation: get('designation'), joining_date: get('joining_date') ? excelDate(get('joining_date')) : '', role: /^(admin|yes|y)$/i.test(get('role').trim()) ? 'admin' : '' };
+  });
+}
+
+// Inside the claude.ai viewer a plain download link is blocked, so the demo saves sample files through the viewer.
+function demoDownload(link) {
+  if (!window.LMS_DEMO || !window.claude?.use) return;
+  link.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const downloads = await window.claude.use('downloads').catch(() => null);
+    if (!downloads) { toast('Downloading works in the hosted version', 'error'); return; }
+    const data = Uint8Array.from(atob(link.href.split(',')[1]), (c) => c.charCodeAt(0));
+    downloads.save({ filename: link.getAttribute('download'), data }).catch((err) => {
+      if (err?.code !== 'declined') toast('Could not download the sample file here', 'error');
+    });
   });
 }
 
@@ -466,17 +500,7 @@ async function openAssignDialog({ moduleId = '', userIds = [], onDone, tab = 'pi
     </form>`, (dlg) => {
     const form = $('#assign-form', dlg);
     // Inside the claude.ai viewer a plain download link is blocked, so the demo saves the sample through the viewer.
-    if (window.LMS_DEMO && window.claude?.use) {
-      $('#download-sample', dlg).addEventListener('click', async (e) => {
-        e.preventDefault();
-        const downloads = await window.claude.use('downloads').catch(() => null);
-        if (!downloads) { toast('Downloading works in the hosted version', 'error'); return; }
-        const data = Uint8Array.from(atob(e.currentTarget.href.split(',')[1]), (c) => c.charCodeAt(0));
-        downloads.save({ filename: 'bulk-assign-sample.xlsx', data }).catch((err) => {
-          if (err?.code !== 'declined') toast('Could not download the sample file here', 'error');
-        });
-      });
-    }
+    demoDownload($('#download-sample', dlg));
     const sel = form.module_id;
     const due = form.due_date;
     let current = tab;
@@ -586,7 +610,9 @@ function openEmployeeDialog(emp, onDone) {
         <div class="field"><label>Joining date</label><input type="date" name="joining_date" required value="${esc(emp.joining_date)}"></div>
         <div class="field"><label>Role</label><select name="role"><option value="employee">Employee</option><option value="admin" ${emp.role === 'admin' ? 'selected' : ''}>Admin</option></select></div>
       </div>
-      <div class="field"><label>${isNew ? 'Initial password' : 'Reset password'}</label><input type="text" name="password" placeholder="${isNew ? 'Leave blank for welcome123' : 'Leave blank to keep current'}"></div>
+      ${state.config.password
+        ? `<div class="field"><label>${isNew ? 'Initial password' : 'Reset password'}</label><input type="text" name="password" placeholder="${isNew ? 'Leave blank for welcome123' : 'Leave blank to keep current'}"></div>`
+        : '<div class="hint">They sign in with Google using this work email. Admins see the Manage menu; employees see only their own learning.</div>'}
       ${isNew
         ? '<label class="check"><input type="checkbox" name="assign_onboarding" checked> Assign onboarding modules now (due dates count from the joining date)</label>'
         : `<label class="check"><input type="checkbox" name="active" ${emp.active ? 'checked' : ''}> Active (inactive employees cannot sign in)</label>`}
@@ -595,7 +621,7 @@ function openEmployeeDialog(emp, onDone) {
     const form = $('#emp-form', dlg);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const body = Object.fromEntries(['name', 'email', 'department', 'designation', 'joining_date', 'role', 'password'].map((k) => [k, form[k].value]));
+      const body = Object.fromEntries(['name', 'email', 'department', 'designation', 'joining_date', 'role', 'password'].filter((k) => form[k]).map((k) => [k, form[k].value]));
       try {
         if (isNew) {
           body.assign_onboarding = form.assign_onboarding.checked;
@@ -614,21 +640,55 @@ function openEmployeeDialog(emp, onDone) {
 }
 
 function openImportDialog(onDone) {
+  const pw = state.config.password ? ' People added here can sign in with the password <code>welcome123</code>.' : ' They sign in with Google using their work email.';
+  let people = null;
   openDialog(`
     <form id="import-form">
-      <h2>Import employees</h2>
-      <p class="sub">Paste CSV rows: <code>name,email,department,designation,joining_date</code>. A header row is optional. Joining date is YYYY-MM-DD (blank means today). Everyone starts with the password <code>welcome123</code>.</p>
-      <div class="field"><textarea name="csv" placeholder="Rahul Verma,rahul@company.com,Engineering,Backend Engineer,2026-10-20"></textarea></div>
-      <label class="check"><input type="checkbox" name="assign_onboarding" checked> Assign onboarding modules automatically</label>
+      <h2>Add employees from Excel</h2>
+      <div class="sample-file">
+        <div><strong>Step 1.</strong> Download the sample file, fill in one person per row and save it.<br><span class="sub">Name and Email are required. Write <strong>Admin</strong> in the Role column to give someone admin access.</span></div>
+        <a class="btn" id="download-employees-sample" href="${esc(window.LMS_EMPLOYEE_TEMPLATE_URL || '/templates/employees-template.xlsx')}" download="employees-sample.xlsx">⬇ Download sample file</a>
+      </div>
+      <div class="hint" style="margin:10px 0 6px"><strong>Step 2.</strong> Upload the filled-in file here.</div>
+      <div class="drop" id="imp-drop">Drag an Excel file here, or <button type="button" class="small" id="imp-choose">Choose file</button><input type="file" id="imp-file" accept=".xlsx,.csv" hidden></div>
+      <div id="imp-preview"></div>
+      <label class="check" style="margin-top:8px"><input type="checkbox" name="assign_onboarding" checked> Assign onboarding modules automatically</label>
+      <p class="sub">${pw} People who sign in with Google before you add them are created automatically, so this step is optional.</p>
+      <details class="sub"><summary>Or paste rows instead</summary>
+        <p>One person per line: <code>name,email,department,designation,joining_date,role</code>. Joining date is YYYY-MM-DD (blank means today); role is Admin or blank.</p>
+        <div class="field"><textarea name="csv" placeholder="Rahul Verma,rahul@company.com,Engineering,Backend Engineer,2026-10-20"></textarea></div>
+      </details>
       <div id="import-errors"></div>
-      <div class="dlg-foot"><button type="button" data-close>Close</button><button class="primary">Import</button></div>
+      <div class="dlg-foot"><button type="button" data-close>Close</button><button class="primary">Add employees</button></div>
     </form>`, (dlg) => {
     const form = $('#import-form', dlg);
+    demoDownload($('#download-employees-sample', dlg));
+    const loadFile = async (file) => {
+      if (!file) return;
+      const box = $('#imp-preview', dlg);
+      try {
+        people = rowsToPeople(await readSpreadsheet(file)).filter((p) => p.email || p.name);
+        $('#imp-drop', dlg).firstChild.textContent = `📄 ${file.name} · `;
+        box.innerHTML = `<div class="hint" style="margin-top:10px"><strong>${people.length}</strong> ${people.length === 1 ? 'person' : 'people'} found in the file</div>
+          <div class="preview-table"><table><tr><th class="num">Row</th><th>Employee</th><th>Department</th><th>Role</th></tr>
+          ${people.map((p, i) => `<tr><td class="num sub">${i + 2}</td><td>${esc(p.name)}<div class="sub">${esc(p.email)}</div></td><td>${esc(p.department)}</td><td>${p.role === 'admin' ? '<span class="badge blue">Admin</span>' : 'Employee'}</td></tr>`).join('')}</table></div>`;
+      } catch (err) { people = null; box.innerHTML = ''; toast(err.message, 'error'); }
+    };
+    $('#imp-choose', dlg).addEventListener('click', () => $('#imp-file', dlg).click());
+    $('#imp-file', dlg).addEventListener('change', (e) => loadFile(e.target.files[0]));
+    const drop = $('#imp-drop', dlg);
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); loadFile(e.dataTransfer.files[0]); });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
-        const r = await api('/employees/import', { method: 'POST', body: { csv: form.csv.value, assign_onboarding: form.assign_onboarding.checked } });
-        toast(`Imported ${r.created} employee${r.created === 1 ? '' : 's'}, ${r.onboarding_assigned} onboarding assignment${r.onboarding_assigned === 1 ? '' : 's'}`);
+        const body = { assign_onboarding: form.assign_onboarding.checked };
+        if (people) body.rows = people;
+        else if (form.csv.value.trim()) body.csv = form.csv.value;
+        else throw new Error('Choose an Excel file first');
+        const r = await api('/employees/import', { method: 'POST', body });
+        toast(`Added ${r.created} employee${r.created === 1 ? '' : 's'}, ${r.onboarding_assigned} onboarding assignment${r.onboarding_assigned === 1 ? '' : 's'}`);
         onDone?.();
         if (r.errors.length) {
           $('#import-errors', dlg).innerHTML = `<div class="result fail">${r.errors.length} row(s) skipped:<br>${r.errors.map((x) => `Row ${x.row}: ${esc(x.error)}`).join('<br>')}</div>`;
@@ -682,25 +742,42 @@ async function viewDashboard() {
 async function viewEmployees() {
   const employees = await api('/employees');
   $('#view').innerHTML = `
-    <div class="page-head"><div><h1>Employees</h1><p>New employees get onboarding modules automatically when you add them.</p></div>
-      <div class="actions"><button id="import">Import CSV</button><button class="primary" id="add">Add employee</button></div></div>
-    <div class="filters"><input type="search" id="search" placeholder="Search name, email or department"></div>
+    <div class="page-head"><div><h1>Employees</h1><p>New employees get onboarding modules automatically when you add them. ${state.config.google ? 'Anyone with a company Google account is also added the first time they sign in.' : ''}</p></div>
+      <div class="actions"><button id="import">Add from Excel</button><button class="primary" id="add">Add employee</button></div></div>
+    <div class="filters"><input type="search" id="search" placeholder="Search name, email or department">
+      <select id="role-filter"><option value="">Everyone</option><option value="admin">Admins only</option><option value="employee">Employees only</option></select></div>
     <div class="card flush"><div class="table-wrap"><table id="emp-table">
       <tr><th>Name</th><th>Department</th><th>Joined</th><th class="num">Assigned</th><th class="num">Completed</th><th class="num">Overdue</th><th></th></tr>
-      ${employees.map((e) => `<tr data-text="${esc(`${e.name} ${e.email} ${e.department}`.toLowerCase())}">
+      ${employees.map((e) => `<tr data-role="${e.role}" data-text="${esc(`${e.name} ${e.email} ${e.department}`.toLowerCase())}">
         <td><a href="#/employees/${e.id}">${esc(e.name)}</a> ${e.role === 'admin' ? '<span class="badge blue">Admin</span>' : ''} ${e.active ? '' : '<span class="badge">Inactive</span>'}<div class="sub">${esc(e.email)}</div></td>
         <td>${esc(e.department)}<div class="sub">${esc(e.designation)}</div></td>
         <td>${fmtDate(e.joining_date)}</td>
         <td class="num">${e.assigned}</td><td class="num">${e.completed}</td>
         <td class="num">${e.overdue ? `<span class="badge red">${e.overdue}</span>` : ''}</td>
-        <td class="num"><button class="small" data-assign="${e.id}">Assign</button></td></tr>`).join('')}
+        <td class="num nowrap"><button class="small" data-assign="${e.id}">Assign</button>
+          ${e.id === state.user.id ? '' : `<button class="small" data-role-id="${e.id}" data-role-to="${e.role === 'admin' ? 'employee' : 'admin'}" data-name="${esc(e.name)}">${e.role === 'admin' ? 'Remove admin' : 'Make admin'}</button>`}</td></tr>`).join('')}
     </table></div></div>`;
   $('#add').addEventListener('click', () => openEmployeeDialog(null, router));
   $('#import').addEventListener('click', () => openImportDialog(router));
-  $('#search').addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase();
-    $$('#emp-table tr[data-text]').forEach((tr) => { tr.hidden = q && !tr.dataset.text.includes(q); });
-  });
+  const filter = () => {
+    const q = $('#search').value.toLowerCase();
+    const role = $('#role-filter').value;
+    $$('#emp-table tr[data-text]').forEach((tr) => { tr.hidden = (q && !tr.dataset.text.includes(q)) || (role && tr.dataset.role !== role); });
+  };
+  $('#search').addEventListener('input', filter);
+  $('#role-filter').addEventListener('change', filter);
+  $$('[data-role-id]').forEach((b) => b.addEventListener('click', async () => {
+    const toAdmin = b.dataset.roleTo === 'admin';
+    const ok = await askConfirm(toAdmin
+      ? `${b.dataset.name} will be able to manage employees, modules and assignments.`
+      : `${b.dataset.name} will only see their own learning.`, toAdmin ? 'Make admin' : 'Remove admin');
+    if (!ok) return;
+    try {
+      await api(`/employees/${b.dataset.roleId}/role`, { method: 'PUT', body: { role: b.dataset.roleTo } });
+      toast(toAdmin ? `${b.dataset.name} is now an admin` : `${b.dataset.name} is no longer an admin`);
+      router();
+    } catch (err) { toast(err.message, 'error'); }
+  }));
   $$('[data-assign]').forEach((b) => b.addEventListener('click', () => openAssignDialog({ userIds: [b.dataset.assign], onDone: router })));
 }
 
