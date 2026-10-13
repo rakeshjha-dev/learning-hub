@@ -905,30 +905,58 @@ const prettyDate = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB',
 
 function assignmentEmail(person, items, siteUrl) {
   const many = items.length > 1;
+  const first = person.name.split(' ')[0];
   const subject = many ? `${items.length} new learning modules assigned to you` : `New learning module: ${items[0].title}`;
-  const rows = items.map((a) => `
-    <tr><td style="padding:14px 16px;border:1px solid #eceef3;border-radius:8px;font-size:14px">
-      <div style="font-size:16px;font-weight:600;color:#24262B">${escHtml(a.title)}</div>
-      ${a.description ? `<div style="color:#5b5f6e;margin-top:4px">${escHtml(a.description)}</div>` : ''}
-      <div style="color:#5b5f6e;margin-top:8px">Due by <strong>${prettyDate(a.due_date)}</strong>${a.note ? ` · ${escHtml(a.note)}` : ''}</div>
-      <div style="margin-top:12px"><a href="${siteUrl}/#/learn/${a.id}" style="background:#F65C36;color:#fff;text-decoration:none;padding:9px 16px;border-radius:6px;display:inline-block;font-weight:600">Start module</a></div>
-    </td></tr><tr><td style="height:10px"></td></tr>`).join('');
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#24262B;max-width:560px;margin:0 auto">
-    <p style="font-size:13px;color:#F65C36;font-weight:700;letter-spacing:.3px">${escHtml(BRAND_NAME)}</p>
-    <p>Hi ${escHtml(person.name.split(' ')[0])},</p>
-    <p>${many ? 'These learning modules have' : 'A learning module has'} been assigned to you${items[0].by_name ? ` by ${escHtml(items[0].by_name)}` : ''}.</p>
-    <table role="presentation" style="width:100%;border-collapse:separate">${rows}</table>
-    <p style="color:#5b5f6e">Sign in at <a href="${siteUrl}" style="color:#F65C36">${siteUrl.replace(/^https?:\/\//, '')}</a> with your company Google account to see all your learning.</p>
-  </div>`;
-  const text = `Hi ${person.name.split(' ')[0]},\n\n${many ? 'These learning modules have' : 'A learning module has'} been assigned to you:\n\n${
-    items.map((a) => `- ${a.title} (due ${prettyDate(a.due_date)})${a.note ? ` - ${a.note}` : ''}\n  ${siteUrl}/#/learn/${a.id}`).join('\n')}\n\n${BRAND_NAME}`;
+  const by = items[0].by_name;
+  const font = 'font-family:Arial,Helvetica,sans-serif';
+  const muted = 'color:#6b6f7e';
+  const cards = items.map((a) => {
+    const parts = [a.lessons ? `${a.lessons} lesson${a.lessons === 1 ? '' : 's'}` : '', a.questions ? 'Quiz' : ''].filter(Boolean).join(' · ');
+    return `
+      <tr><td style="padding:0 0 14px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e7e9ef;border-radius:10px;border-left:4px solid #F65C36">
+          <tr><td style="padding:18px 20px;${font}">
+            <div style="font-size:17px;font-weight:700;color:#24262B;line-height:1.35">${escHtml(a.title)}</div>
+            ${a.description ? `<div style="font-size:14px;${muted};line-height:1.5;margin-top:6px">${escHtml(a.description)}</div>` : ''}
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px"><tr>
+              <td style="font-size:13px;${muted};padding-right:22px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px">Due by</div><div style="font-size:14px;font-weight:700;color:#24262B;margin-top:2px">${prettyDate(a.due_date)}</div></td>
+              ${parts ? `<td style="font-size:13px;${muted}"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px">Includes</div><div style="font-size:14px;font-weight:700;color:#24262B;margin-top:2px">${parts}</div></td>` : ''}
+            </tr></table>
+            ${a.note ? `<div style="margin-top:14px;padding:10px 12px;background:#FFF3EF;border-radius:6px;font-size:14px;color:#24262B;line-height:1.45"><strong>Note:</strong> ${escHtml(a.note)}</div>` : ''}
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:16px"><tr><td style="background:#F65C36;border-radius:6px">
+              <a href="${siteUrl}/#/learn/${a.id}" style="display:inline-block;padding:11px 22px;${font};font-size:14px;font-weight:700;color:#ffffff;text-decoration:none">Start module &rarr;</a>
+            </td></tr></table>
+          </td></tr>
+        </table>
+      </td></tr>`;
+  }).join('');
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f5f8">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f8"><tr><td align="center" style="padding:28px 12px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:12px;overflow:hidden">
+      <tr><td style="padding:22px 28px;border-bottom:1px solid #eef0f4">
+        <img src="${siteUrl}/brand/logo.png" alt="${escHtml(BRAND_NAME)}" height="34" style="display:block;height:34px;border:0">
+      </td></tr>
+      <tr><td style="padding:26px 28px 8px;${font};color:#24262B">
+        <div style="font-size:21px;font-weight:700;line-height:1.3">${many ? `You have ${items.length} new learning modules` : 'You have a new learning module'}</div>
+        <p style="font-size:15px;line-height:1.55;margin:12px 0 20px">Hi ${escHtml(first)},<br>${by ? `${escHtml(by)} has assigned` : "We've assigned"} ${many ? 'these modules' : 'this module'} to you. Please complete ${many ? 'each one' : 'it'} by the due date.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${cards}</table>
+        <p style="font-size:15px;line-height:1.55;margin:10px 0 24px">Happy learning!<br><span style="${muted}">Learning &amp; Development Team</span></p>
+      </td></tr>
+      <tr><td style="padding:16px 28px;background:#fafbfc;border-top:1px solid #eef0f4;${font};font-size:12px;${muted};line-height:1.5">
+        You're receiving this because a learning module was assigned to you on ${escHtml(BRAND_NAME)}.
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+  const text = `Hi ${first},\n\n${by ? `${by} has assigned` : "We've assigned"} ${many ? 'these learning modules' : 'a learning module'} to you:\n\n${
+    items.map((a) => `- ${a.title} (due ${prettyDate(a.due_date)})${a.note ? `\n  Note: ${a.note}` : ''}\n  Start: ${siteUrl}/#/learn/${a.id}`).join('\n\n')}\n\nHappy learning!\nLearning & Development Team, ${BRAND_NAME}`;
   return { to: person.email, subject, html, text };
 }
 
 async function sendAssignmentEmails(ids, siteUrl) {
   if (!ids.length || !MAIL_MODE) return null;
   const list = await db.prepare(
-    `SELECT a.id, a.due_date, a.note, u.id AS user_id, u.name, u.email, u.active, m.title, m.description, ab.name AS by_name
+    `SELECT a.id, a.due_date, a.note, u.id AS user_id, u.name, u.email, u.active, m.title, m.description, ab.name AS by_name,
+       (SELECT COUNT(*) FROM lessons l WHERE l.module_id = m.id) AS lessons, (SELECT COUNT(*) FROM questions q WHERE q.module_id = m.id) AS questions
      FROM assignments a JOIN users u ON u.id = a.user_id JOIN modules m ON m.id = a.module_id LEFT JOIN users ab ON ab.id = a.assigned_by
      WHERE a.id IN (${ids.map(() => '?').join(',')}) ORDER BY a.due_date`
   ).all(...ids);
