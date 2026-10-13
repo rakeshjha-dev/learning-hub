@@ -30,7 +30,11 @@ const PASSWORD_LOGIN = !GOOGLE_ENABLED || process.env.ALLOW_PASSWORD_LOGIN === '
 // Vercel names the Blob token BLOB_READ_WRITE_TOKEN, or <PREFIX>_READ_WRITE_TOKEN when the store was given a custom prefix.
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN
   || Object.entries(process.env).find(([k, v]) => k.endsWith('READ_WRITE_TOKEN') && String(v).startsWith('vercel_blob_rw_'))?.[1] || '';
-const BLOB_ENABLED = !!BLOB_TOKEN;
+// Newer Vercel Blob stores connect with a store id and Vercel's built-in login (OIDC) instead of a token.
+const BLOB_STORE_ID = process.env.BLOB_STORE_ID || '';
+const BLOB_MODE = BLOB_TOKEN ? 'token' : (BLOB_STORE_ID ? 'presigned' : '');
+const BLOB_ENABLED = !!BLOB_MODE;
+const VIDEO_CONTENT_TYPES = () => [...new Set(Object.values(VIDEO_TYPES)), 'application/octet-stream'];
 // Vercel's disk is read-only and temporary, so videos there go to Blob storage instead.
 const ON_VERCEL = !!process.env.VERCEL;
 if (!ON_VERCEL) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -304,9 +308,7 @@ route('GET', '/api/config', null, async () => ({
   password: PASSWORD_LOGIN,
   demoAccounts: !GOOGLE_ENABLED,
   domains: ALLOWED_DOMAINS,
-  blobUploads: BLOB_ENABLED,
-  // Setup check: names only (never values) of storage-related settings, to spot a misnamed Blob connection.
-  ...(BLOB_ENABLED ? {} : { storageSettings: Object.keys(process.env).filter((k) => /BLOB|READ_WRITE|STORE/i.test(k)) }),
+  blobUploads: BLOB_MODE || false,
 }));
 
 route('POST', '/api/login', null, async ({ req, body, res }) => {
@@ -616,20 +618,49 @@ route('POST', '/api/assignments/bulk', 'admin', async ({ body, user }) => {
 // short-lived permission to do so. Functions on Vercel can't receive large request bodies themselves.
 route('POST', '/api/uploads/blob', 'admin', async ({ req, body }) => {
   if (!BLOB_ENABLED) throw new HttpError(404, 'Online video storage is not set up');
+  const checkName = (pathname) => {
+    if (!VIDEO_TYPES[path.extname(pathname).toLowerCase()]) throw new HttpError(400, 'Please upload a video file (MP4, WebM or MOV)');
+  };
+  if (BLOB_MODE === 'presigned') {
+    const { handleUploadPresigned } = require('@vercel/blob/client');
+    const { issueSignedToken } = require('@vercel/blob');
+    return handleUploadPresigned({
+      request: req,
+      body,
+      getSignedToken: async (pathname) => {
+        checkName(pathname);
+        const limits = { allowedContentTypes: VIDEO_CONTENT_TYPES(), maximumSizeInBytes: MAX_UPLOAD_BYTES };
+        const token = await issueSignedToken({ pathname: '*', operations: ['put'], validUntil: Date.now() + 3600e3, ...limits });
+        return { token, urlOptions: { ...limits, addRandomSuffix: true } };
+      },
+    });
+  }
   const { handleUpload } = require('@vercel/blob/client');
   return handleUpload({
     token: BLOB_TOKEN,
     request: req,
     body,
     onBeforeGenerateToken: async (pathname) => {
-      if (!VIDEO_TYPES[path.extname(pathname).toLowerCase()]) throw new HttpError(400, 'Please upload a video file (MP4, WebM or MOV)');
+      checkName(pathname);
       return {
-        allowedContentTypes: [...new Set(Object.values(VIDEO_TYPES)), 'application/octet-stream'],
+        allowedContentTypes: VIDEO_CONTENT_TYPES(),
         maximumSizeInBytes: MAX_UPLOAD_BYTES,
         addRandomSuffix: true,
       };
     },
   });
+});
+
+// Playback for videos in a Blob store that uses store-id login: signed-in users get a short-lived link.
+route('GET', '/api/media/:access/:pathname', 'user', async ({ res, params }) => {
+  if (BLOB_MODE !== 'presigned') throw new HttpError(404, 'Video not found');
+  const access = params.access === 'public' ? 'public' : 'private';
+  const pathname = String(params.pathname);
+  const { issueSignedToken, presignUrl } = require('@vercel/blob');
+  const token = await issueSignedToken({ pathname, operations: ['get', 'head'], validUntil: Date.now() + 6 * 3600e3 });
+  const { presignedUrl } = await presignUrl(token, { operation: 'get', pathname, access });
+  res.writeHead(302, { Location: presignedUrl, 'Cache-Control': 'private, max-age=300' });
+  res.end();
 });
 
 route('POST', '/api/uploads', 'admin', async ({ req, query }) => new Promise((resolve, reject) => {

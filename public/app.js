@@ -93,10 +93,10 @@ function renderContent(text) {
   return html;
 }
 
-const isUploadedVideo = (url) => /^\/uploads\//.test(url || '') || /^demo-video:/.test(url || '')
+const isUploadedVideo = (url) => /^\/(uploads|api\/media)\//.test(url || '') || /^demo-video:/.test(url || '')
   || /^https:\/\/[\w-]+\.public\.blob\.vercel-storage\.com\//.test(url || '');
 // Server uploads are "<12 hex>-name.mp4"; online (Blob) uploads are "name-<random suffix>.mp4".
-const uploadedName = (url) => decodeURIComponent(String(url).split(/[?#]/)[0].split('/').pop().replace(/^[a-f0-9]{12}-/, '').replace(/-[A-Za-z0-9]{20,40}(\.\w+)$/, '$1'));
+const uploadedName = (url) => decodeURIComponent(String(url).split(/[?#]/)[0].split('/').pop()).split('/').pop().replace(/^[a-f0-9]{12}-/, '').replace(/-[A-Za-z0-9]{20,40}(\.\w+)$/, '$1');
 function uploadedVideoTag(url) {
   if (url.startsWith('demo-video:')) return `<video data-demo-video="${esc(url.slice(11).split('/')[0])}" controls preload="metadata"></video>`;
   return `<video src="${esc(url)}" controls preload="metadata"></video>`;
@@ -126,12 +126,27 @@ async function uploadVideo(file, onStatus) {
   if (state.config.blobUploads) {
     // Online: the video goes straight from the browser to Vercel Blob storage.
     await loadScript('/vendor/blob-upload.js');
-    const blob = await window.BlobUpload.upload(`videos/${file.name.replace(/[^\w.-]+/g, '-')}`, file, {
-      access: 'public',
+    const target = `videos/${file.name.replace(/[^\w.-]+/g, '-')}`;
+    const options = (access) => ({
+      access,
       handleUploadUrl: '/api/uploads/blob',
       multipart: file.size > 50 * 1048576,
       onUploadProgress: ({ percentage }) => onStatus?.(`${label}: ${Math.round(percentage)}%`),
-    }).catch((e) => { throw new Error(e.message?.replace(/^Vercel Blob: /, '') || 'Upload failed'); });
+    });
+    const tidy = (e) => new Error(e.message?.replace(/^Vercel Blob: /, '') || 'Upload failed');
+    if (state.config.blobUploads === 'presigned') {
+      // Store-id stores are private or public; try private first, then public.
+      for (const access of ['private', 'public']) {
+        try {
+          const blob = await window.BlobUpload.uploadPresigned(target, file, options(access));
+          onStatus?.('');
+          return `/api/media/${access}/${encodeURIComponent(blob.pathname)}`;
+        } catch (e) {
+          if (access === 'public') throw tidy(e);
+        }
+      }
+    }
+    const blob = await window.BlobUpload.upload(target, file, options('public')).catch((e) => { throw tidy(e); });
     onStatus?.('');
     return blob.url;
   }
