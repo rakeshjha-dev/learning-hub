@@ -187,11 +187,13 @@ function renderLogin() {
   const ssoDeclined = search.get('sso') === '0';
   if (location.search) history.replaceState(null, '', location.pathname + location.hash);
   // Single sign-on: someone already signed in to Google with their company account gets in without a click.
-  // Tried once per tab, and not right after they pressed Sign out.
-  if (cfg.google && !loginError && !ssoDeclined && !store.get('localStorage', 'lms_signed_out') && !store.get('sessionStorage', 'lms_sso_tried')) {
+  // Tried once per tab, and not in the tab where they just pressed Sign out. The email they used last time tells
+  // Google which account to use when the browser is signed in to several.
+  if (cfg.google && !loginError && !ssoDeclined && !store.get('sessionStorage', 'lms_signed_out') && !store.get('sessionStorage', 'lms_sso_tried')) {
     store.set('sessionStorage', 'lms_sso_tried', '1');
     app.innerHTML = '<div class="login"><div class="card"><p>Signing you in…</p></div></div>';
-    location.href = '/api/auth/google?auto=1';
+    const hint = store.get('localStorage', 'lms_last_email');
+    location.href = `/api/auth/google?auto=1${hint ? `&hint=${encodeURIComponent(hint)}` : ''}`;
     return;
   }
   renderLogin.error = loginError; // survives a re-render during startup
@@ -212,7 +214,7 @@ function renderLogin() {
       ${cfg.demoAccounts ? `<div class="demo"><strong>Demo accounts</strong><br>Admin: admin@company.com / admin123<br>Employee: priya@company.com / welcome123
         ${window.LMS_DEMO ? '<div class="quick"><button type="button" class="small" data-as="admin@company.com|admin123">Try as admin (HR)</button><button type="button" class="small" data-as="priya@company.com|welcome123">Try as employee</button></div>' : ''}</div>` : ''}
     </form></div>`;
-  $('#google-signin')?.addEventListener('click', () => store.set('localStorage', 'lms_signed_out', null));
+  $('#google-signin')?.addEventListener('click', () => store.set('sessionStorage', 'lms_signed_out', null));
   $$('[data-as]').forEach((b) => b.addEventListener('click', () => {
     [$('#email').value, $('#password').value] = b.dataset.as.split('|');
     $('#login-form').requestSubmit();
@@ -249,7 +251,7 @@ function renderShell() {
     </div>`;
   $('#logout').addEventListener('click', async () => {
     await api('/logout', { method: 'POST', body: {} });
-    store.set('localStorage', 'lms_signed_out', '1'); // otherwise single sign-on would sign them straight back in
+    store.set('sessionStorage', 'lms_signed_out', '1'); // otherwise single sign-on would sign them straight back in
     state.user = null;
     location.hash = '';
     renderLogin();
@@ -301,6 +303,7 @@ async function boot() {
   try { state.user = await api('/me'); } catch { return; }
   renderLogin.error = null;
   store.set('sessionStorage', 'lms_sso_tried', null);
+  store.set('localStorage', 'lms_last_email', state.user.email);
   renderShell();
   router();
 }

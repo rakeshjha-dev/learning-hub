@@ -336,6 +336,9 @@ route('GET', '/api/auth/google', null, async ({ req, res, query }) => {
     prompt: auto ? 'none' : 'select_account',
   });
   if (ALLOWED_DOMAINS.length === 1) params.set('hd', ALLOWED_DOMAINS[0]); // pre-filters Google's account picker
+  // The email used last time on this browser, so Google can pick that account silently when several are signed in.
+  const hint = String(query.get('hint') || '').toLowerCase();
+  if (isEmail(hint) && (!ALLOWED_DOMAINS.length || ALLOWED_DOMAINS.includes(hint.split('@')[1]))) params.set('login_hint', hint);
   res.writeHead(302, { Location: `${GOOGLE_AUTH_URL}?${params}`, 'Set-Cookie': cookie(req, 'g_state', auto ? `${state}.auto` : state, 600) });
   res.end();
 });
