@@ -178,10 +178,10 @@ dialog .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; margin-to
 .demo .quick { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
 /* branding */
-.brand-logo { display: block; height: 30px; width: auto; max-width: 100%; }
+.brand-logo { display: block; height: 56px; width: auto; max-width: 100%; }
 .brand-sub { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8a8d95; font-weight: 600; margin-top: 6px; }
 .brand.with-logo { flex-direction: column; align-items: flex-start; gap: 0; }
-.login-logo { height: 40px; width: auto; max-width: 100%; margin-bottom: 18px; }
+.login-logo { height: 76px; width: auto; max-width: 100%; margin-bottom: 18px; }
 
 /* uploads */
 .upload-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }

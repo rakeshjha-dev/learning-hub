@@ -66,7 +66,7 @@ ${safe(read('public/app.js'))}
 // Plain version (shareable link) and a company-branded version (file to open locally).
 build('learning-hub-demo.html', null);
 build('cardekho-learning-hub-demo.html', {
-  company: 'CarDekho Group',
+  company: 'Revv',
   product: 'Learning Hub',
   logo: dataUri('public/brand/logo.png'),
   logoOnDark: dataUri('public/brand/logo-white.png'),

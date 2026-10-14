@@ -213,7 +213,8 @@ function renderLogin() {
     return;
   }
   renderLogin.error = loginError; // survives a re-render during startup
-  const domains = (cfg.domains || []).map((d) => `@${d}`).join(' or ');
+  const at = (cfg.domains || []).map((d) => `@${d}`);
+  const domains = at.length > 1 ? `${at.slice(0, -1).join(', ')} or ${at[at.length - 1]}` : at.join('');
   app.innerHTML = `
     <div class="login"><form class="card" id="login-form">
       ${BRAND?.logo ? `<img class="login-logo" src="${esc(BRAND.logo)}" alt="${esc(BRAND.company)}">` : ''}

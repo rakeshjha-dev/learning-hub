@@ -19,6 +19,7 @@ const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024;
 const VIDEO_TYPES = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.webm': 'video/webm', '.ogg': 'video/ogg', '.mov': 'video/quicktime' };
 
 // Online settings (all optional locally). See DEPLOY.md.
+const orList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} or ${xs[xs.length - 1]}` : xs.join(''));
 const list = (v) => String(v || '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -26,7 +27,8 @@ const GOOGLE_ENABLED = !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
 const GOOGLE_AUTH_URL = process.env.GOOGLE_AUTH_URL || 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_URL = process.env.GOOGLE_TOKEN_URL || 'https://oauth2.googleapis.com/token';
 // Company defaults; override with the ALLOWED_DOMAINS / ADMIN_EMAILS settings in Vercel.
-const ALLOWED_DOMAINS = list(process.env.ALLOWED_DOMAINS || 'girnarsoft.com,cardekho.com');
+// The company domains are always allowed; ALLOWED_DOMAINS in Vercel can add more.
+const ALLOWED_DOMAINS = [...new Set([...list('girnarsoft.com,cardekho.com,revv.co.in'), ...list(process.env.ALLOWED_DOMAINS)])];
 // The owner stays an admin even when ADMIN_EMAILS is set, so a typo there can't lock everyone out of the admin panel.
 const ADMIN_EMAILS = [...new Set([...list(process.env.ADMIN_EMAILS), 'rakesh.jha@girnarsoft.com'])];
 // With Google sign-in on, email + password sign-in is off unless explicitly allowed.
@@ -402,7 +404,7 @@ route('GET', '/api/auth/google/callback', null, async ({ req, res, query }) => {
   }
   if (!claims.email_verified || !isEmail(email)) return fail('Your Google account email is not verified.');
   if (ALLOWED_DOMAINS.length && !ALLOWED_DOMAINS.includes(domain)) {
-    return fail(`Please use your company Google account (${ALLOWED_DOMAINS.map((d) => `@${d}`).join(' or ')}).`);
+    return fail(`Please use your company Google account (${orList(ALLOWED_DOMAINS.map((d) => `@${d}`))}).`);
   }
 
   const isAdmin = ADMIN_EMAILS.includes(email);
@@ -899,7 +901,7 @@ const outbox = new AsyncLocalStorage();
 const queueEmail = (id) => { const box = outbox.getStore(); if (box?.open) box.ids.push(id); };
 onAssigned(queueEmail);
 
-const BRAND_NAME = process.env.BRAND_NAME || 'CarDekho Group Learning Hub';
+const BRAND_NAME = process.env.BRAND_NAME || 'Revv Learning Hub';
 const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const prettyDate = (d) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
@@ -934,7 +936,7 @@ function assignmentEmail(person, items, siteUrl) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f8"><tr><td align="center" style="padding:28px 12px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:12px;overflow:hidden">
       <tr><td style="padding:22px 28px;border-bottom:1px solid #eef0f4">
-        <img src="${siteUrl}/brand/logo.png" alt="${escHtml(BRAND_NAME)}" height="34" style="display:block;height:34px;border:0">
+        <img src="${siteUrl}/brand/logo.png" alt="${escHtml(BRAND_NAME)}" height="52" style="display:block;height:52px;width:auto;border:0">
       </td></tr>
       <tr><td style="padding:26px 28px 8px;${font};color:#24262B">
         <div style="font-size:21px;font-weight:700;line-height:1.3">${many ? `You have ${items.length} new learning modules` : 'You have a new learning module'}</div>
